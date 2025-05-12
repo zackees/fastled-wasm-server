@@ -1,4 +1,5 @@
 import os
+import warnings
 from pathlib import Path
 
 
@@ -21,3 +22,15 @@ SKETCH_CACHE_FILE = OUTPUT_DIR / "compile_cache.db"
 COMPIER_DIR = COMPILER_ROOT / "compiler"
 FASTLED_COMPILER_DIR = COMPILER_ROOT / "fastled/src/platforms/wasm/compiler"
 PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
+
+_CHECK_PATHS = [
+    TEMP_DIR,
+    COMPILER_ROOT,
+]
+
+
+for path in _CHECK_PATHS:
+    if not path.exists():
+        warnings.warn(
+            f"Path {path} does not exist. Please check your environment variables."
+        )
