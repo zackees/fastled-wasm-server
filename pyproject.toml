@@ -50,4 +50,4 @@ ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
 
 [project.scripts]
-fastled-wasm-compiler = "fastled_wasm_server.compile:main"
+fastled-wasm-compile = "fastled_wasm_server.cli_compile:main"
