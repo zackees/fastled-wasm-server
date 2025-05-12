@@ -29,6 +29,8 @@ from fastapi.responses import FileResponse, RedirectResponse, Response  # type: 
 from starlette.middleware.base import BaseHTTPMiddleware  # type: ignore
 from starlette.requests import Request  # type: ignore
 
+from fastled_wasm_server.code_sync import CodeSync
+from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
     FASTLED_SRC,
     LIVE_GIT_FASTLED_DIR,
@@ -38,10 +40,9 @@ from fastled_wasm_server.paths import (  # The folder where the actual source co
     UPLOAD_DIR,
     VOLUME_MAPPED_SRC,
 )
-
-from .code_sync import CodeSync
-from .compile_lock import COMPILE_LOCK  # type: ignore
-from .sketch_hasher import generate_hash_of_project_files  # type: ignore
+from fastled_wasm_server.sketch_hasher import (
+    generate_hash_of_project_files,  # type: ignore
+)
 
 _EXAMPLES: list[str] = [
     "Chromancer",

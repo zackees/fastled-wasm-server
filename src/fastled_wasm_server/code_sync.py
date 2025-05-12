@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from .compile_lock import COMPILE_LOCK
+from fastled_wasm_server.compile_lock import COMPILE_LOCK
 
 TIME_START = time.time()
 

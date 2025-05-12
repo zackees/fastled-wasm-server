@@ -6,9 +6,8 @@ import warnings
 from pathlib import Path
 from typing import Tuple
 
+from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.paths import FASTLED_SRC, VOLUME_MAPPED_SRC
-
-from .code_sync import CodeSync
 
 _PORT = os.environ.get("PORT", 80)
 
