@@ -34,6 +34,7 @@ from fastled_wasm_server.paths import (  # noqa: E402
     PIO_BUILD_DIR,
     SKETCH_SRC,
 )
+from fastled_wasm_server.print_banner import banner  # noqa: E402
 
 print("Finished imports...")
 
@@ -91,55 +92,6 @@ def copy_files(src_dir: Path, js_src: Path) -> None:
         warnings.warn(f"No files found in the mapped directory: {src_dir.absolute()}")
 
 
-def _banner(msg: str) -> str:
-    """
-    Create a banner for the given message.
-    Example:
-    msg = "Hello, World!"
-    print -> "#################"
-             "# Hello, World! #"
-             "#################"
-    """
-    lines = msg.split("\n")
-    # Find the width of the widest line
-    max_width = max(len(line) for line in lines)
-    width = max_width + 4  # Add 4 for "# " and " #"
-
-    # Create the top border
-    banner = "\n" + "#" * width + "\n"
-
-    # Add each line with proper padding
-    for line in lines:
-        padding = max_width - len(line)
-        banner += f"# {line}{' ' * padding} #\n"
-
-    # Add the bottom border
-    banner += "#" * width + "\n"
-    return banner
-
-
-def _print_banner(msg: str) -> None:
-    """Prints a banner with the given message."""
-    print(_banner(msg))
-
-
-def _chunked_print(text: str, lines_per_print: int = 10) -> None:
-    """Prints the text in chunks of the specified size."""
-    lines = text.splitlines()
-    buffer: list[str] = []
-
-    def flush() -> None:
-        if buffer:
-            print("\n".join(buffer))
-            buffer.clear()
-
-    for line in lines:
-        buffer.append(line)
-        if len(buffer) >= lines_per_print:
-            flush()
-    flush()
-
-
 def compile(
     compiler_root: Path, build_mode: BuildMode, auto_clean: bool, no_platformio: bool
 ) -> int:
@@ -147,7 +99,7 @@ def compile(
     max_attempts = 1
     env = os.environ.copy()
     env["BUILD_MODE"] = build_mode.name
-    print(_banner(f"WASM is building in mode: {build_mode.name}"))
+    print(banner(f"WASM is building in mode: {build_mode.name}"))
     cmd_list: list[str] = []
     if no_platformio:
         # execute build_archive.syh
@@ -165,7 +117,7 @@ def compile(
 
     def _open_process(cmd_list: list[str] = cmd_list) -> subprocess.Popen:
         print(
-            _banner(
+            banner(
                 "Build started with command:\n  " + subprocess.list2cmdline(cmd_list)
             )
         )
@@ -196,7 +148,7 @@ def compile(
 
             process.wait()
 
-            print(_banner("Compilation process Finsished."))
+            print(banner("Compilation process Finsished."))
 
             if process.returncode == 0:
                 print("\nCompilation successful.\n")
@@ -204,7 +156,7 @@ def compile(
             else:
                 raise subprocess.CalledProcessError(process.returncode, ["pio", "run"])
         except subprocess.CalledProcessError:
-            print(_banner(f"Compilation failed on attempt {attempt}"))
+            print(banner(f"Compilation failed on attempt {attempt}"))
             if attempt == max_attempts:
                 print("Max attempts reached. Compilation failed.")
                 return 1
@@ -260,7 +212,7 @@ def transform_to_cpp(src_dir: Path) -> None:
 def insert_headers(
     src_dir: Path, exclusion_folders: List[Path], file_extensions: List[str]
 ) -> None:
-    print(_banner("Inserting headers in source files..."))
+    print(banner("Inserting headers in source files..."))
     for file in src_dir.rglob("*"):
         if (
             file.suffix in file_extensions
@@ -274,7 +226,7 @@ def process_ino_files(src_dir: Path) -> None:
     transform_to_cpp(src_dir)
     exclusion_folders: List[Path] = []
     insert_headers(src_dir, exclusion_folders, _FILE_EXTENSIONS)
-    print(_banner("Transform to cpp and insert header operations completed."))
+    print(banner("Transform to cpp and insert header operations completed."))
 
 
 class StreamingTimestamper:
@@ -416,7 +368,7 @@ def process_compile(
     if rtn != 0:
         print("Compilation failed.")
         raise RuntimeError("Compilation failed.")
-    print(_banner("Compilation successful."))
+    print(banner("Compilation successful."))
 
 
 def cleanup(args: Args, js_src: Path) -> None:
@@ -457,12 +409,12 @@ def run(args: Args) -> int:
     print(f"Using mapped directory: {args.mapped_dir}")
 
     if args.profile:
-        print(_banner("Enabling profiling for compilation."))
+        print(banner("Enabling profiling for compilation."))
         # Profile linking
         os.environ["EMPROFILE"] = "2"
     else:
         print(
-            _banner(
+            banner(
                 "Build process profiling is disabled\nuse --profile to get metrics on how long the build process took."
             )
         )
@@ -536,7 +488,7 @@ def run(args: Args) -> int:
             else:
                 build_dir = _get_build_dir_platformio()
 
-            print(_banner("Copying output files..."))
+            print(banner("Copying output files..."))
             out_dir: Path = src_dir / _FASTLED_OUTPUT_DIR_NAME
             out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -597,7 +549,7 @@ def run(args: Args) -> int:
                     if _file.is_file():  # Only copy files, not directories
                         filename: str = _file.name
                         if filename.endswith(".embedded.json"):
-                            print(_banner("Embedding data file"))
+                            print(banner("Embedding data file"))
                             filename_no_embedded = filename.replace(
                                 ".embedded.json", ""
                             )
@@ -628,13 +580,13 @@ def run(args: Args) -> int:
                             )
 
             # Write manifest file even if empty
-            print(_banner("Writing manifest files.json"))
+            print(banner("Writing manifest files.json"))
             manifest_json_str = json.dumps(manifest, indent=2, sort_keys=True)
             with open(out_dir / "files.json", "w") as f:
                 f.write(manifest_json_str)
         cleanup(args, SKETCH_SRC)
 
-        print(_banner("Compilation process completed successfully"))
+        print(banner("Compilation process completed successfully"))
         return 0
 
     except Exception as e:
