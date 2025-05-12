@@ -1,5 +1,7 @@
+import shutil
 import subprocess
 import time
+import warnings
 from pathlib import Path
 from typing import Callable
 
@@ -7,11 +9,16 @@ from fastled_wasm_server.compile_lock import COMPILE_LOCK
 
 TIME_START = time.time()
 
+_HAS_RSYNC = shutil.which("rsync") is not None
+
 
 def _sync_src_to_target(
     src: Path, dst: Path, callback: Callable[[], None] | None = None
 ) -> bool:
     """Sync the volume mapped source directory to the FastLED source directory."""
+    if not _HAS_RSYNC:
+        warnings.warn("rsync not found, skipping sync")
+        return False
     suppress_print = (
         TIME_START + 30 > time.time()
     )  # Don't print during initial volume map.
