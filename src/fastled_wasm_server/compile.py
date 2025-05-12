@@ -28,7 +28,7 @@ from enum import Enum  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import List  # noqa: E402
 
-from .paths import (  # noqa: E402
+from fastled_wasm_server.paths import (  # noqa: E402
     COMPILER_ROOT,
     FASTLED_COMPILER_DIR,
     PIO_BUILD_DIR,
