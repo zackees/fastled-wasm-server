@@ -7,18 +7,17 @@ from threading import Timer
 from disklru import DiskLRUCache  # type: ignore
 
 from fastled_wasm_server.code_sync import CodeSync
-from fastled_wasm_server.paths import LIVE_GIT_FASTLED_DIR
 
 
-def update_live_git_repo() -> None:
+def update_live_git_repo(live_git_fastled_root_dir: Path) -> None:
     try:
-        if not LIVE_GIT_FASTLED_DIR.exists():
+        if not live_git_fastled_root_dir.exists():
             subprocess.run(
                 [
                     "git",
                     "clone",
                     "https://github.com/fastled/fastled.git",
-                    str(LIVE_GIT_FASTLED_DIR),
+                    str(live_git_fastled_root_dir),
                     "--depth=1",
                 ],
                 check=True,
@@ -30,13 +29,13 @@ def update_live_git_repo() -> None:
                 ["git", "fetch", "origin"],
                 check=True,
                 capture_output=True,
-                cwd=LIVE_GIT_FASTLED_DIR,
+                cwd=live_git_fastled_root_dir,
             )
             subprocess.run(
                 ["git", "reset", "--hard", "origin/master"],
                 check=True,
                 capture_output=True,
-                cwd=LIVE_GIT_FASTLED_DIR,
+                cwd=live_git_fastled_root_dir,
             )
             print("Live FastLED repository updated successfully")
     except subprocess.CalledProcessError as e:
@@ -46,13 +45,14 @@ def update_live_git_repo() -> None:
 
 
 def start_sync_live_git_to_target(
+    live_git_fastled_root_dir: Path,
     compiler_lock: threading.Lock,
     code_sync: CodeSync,
     sketch_cache: DiskLRUCache,
     fastled_src: Path,
     update_interval: int,
 ) -> None:
-    update_live_git_repo()  # no lock
+    update_live_git_repo(live_git_fastled_root_dir)  # no lock
 
     def on_files_changed() -> None:
         print("FastLED source changed from github repo, clearing disk cache.")
@@ -60,12 +60,12 @@ def start_sync_live_git_to_target(
 
     with compiler_lock:
         code_sync.sync_src_to_target(
-            volume_mapped_src=LIVE_GIT_FASTLED_DIR / "src",
+            volume_mapped_src=live_git_fastled_root_dir / "src",
             rsync_dest=fastled_src,
             callback=on_files_changed,
         )
     code_sync.sync_src_to_target(
-        volume_mapped_src=LIVE_GIT_FASTLED_DIR / "examples",
+        volume_mapped_src=live_git_fastled_root_dir / "examples",
         rsync_dest=fastled_src.parent / "examples",
         callback=on_files_changed,
     )

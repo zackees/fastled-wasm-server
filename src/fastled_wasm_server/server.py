@@ -24,6 +24,7 @@ from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
     FASTLED_SRC,
+    LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
     SKETCH_CACHE_FILE,
     UPLOAD_DIR,
@@ -146,6 +147,7 @@ async def lifespan(app: FastAPI):  # type: ignore
 
     if _LIVE_GIT_UPDATES_ENABLED:
         start_sync_live_git_to_target(
+            live_git_fastled_root_dir=LIVE_GIT_FASTLED_DIR,
             compiler_lock=COMPILE_LOCK,
             code_sync=_CODE_SYNC,
             sketch_cache=SKETCH_CACHE,
