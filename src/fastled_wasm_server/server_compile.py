@@ -20,8 +20,10 @@ from fastapi import (  # type: ignore
     UploadFile,
 )
 from fastapi.responses import FileResponse  # type: ignore
+from fastled_wasm_compiler.run import Args
 
 from fastled_wasm_server.code_sync import CodeSync
+from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
 )
@@ -96,24 +98,26 @@ def _compile_source(
 
     _print("Files are ready, waiting for compile lock...")
     compile_lock_start = time.time()
+    args: Args = Args(
+        compiler_root=compiler_root,
+        assets_dirs=FASTLED_COMPILER_DIR,
+        mapped_dir=temp_src_dir,
+        keep_files=False,
+        only_copy=False,
+        only_insert_header=False,
+        only_compile=False,
+        profile=profile,
+        disable_auto_clean=False,
+        no_platformio=True,
+        debug=build_mode.lower() == "debug",
+        quick=build_mode.lower() == "quick",
+        release=build_mode.lower() == "release",
+    )
+    cmd = args.to_cmd_args()
 
     with compiler_lock:
         compiled_lock_end = time.time()
-
-        # is_debug = build_mode.lower() == "debug"
-
         _print("\nRunning compiler...")
-        cmd = [
-            "python",
-            "run.py",
-            "compile",
-            f"--mapped-dir={temp_src_dir}",
-        ]
-        # if is_debug:
-        #    cmd += ["--no-platformio"]  # fast path that doesn't need a lock.
-        cmd.append(f"--{build_mode.lower()}")
-        if profile:
-            cmd.append("--profile")
         proc = subprocess.Popen(
             cmd,
             cwd=compiler_root.as_posix(),

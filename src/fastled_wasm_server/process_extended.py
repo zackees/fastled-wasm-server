@@ -37,8 +37,8 @@ class ProcessExtended(multiprocessing.Process):
         os.dup2(self._stderr_pipe_write, sys.stderr.fileno())
 
         # Reassign the Python-level streams with line buffering.
-        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1)
-        sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=1)
+        sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=-1)
+        sys.stderr = os.fdopen(sys.stderr.fileno(), "w", buffering=-1)
 
         try:
             self._target_func(*self._target_args, **self._target_kwargs)
