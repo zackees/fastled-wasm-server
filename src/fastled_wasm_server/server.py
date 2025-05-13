@@ -377,19 +377,17 @@ async def compiler_in_use() -> dict:
 
 
 def zip_example_to_file(example: str, dst_zip_file: Path) -> None:
-    # examples_dir = Path(f"/js/fastled/examples/{example}")
-    # examples_base_dir = FASTLED_SRC.parent / "examples"
     examples_base_dir = FASTLED_EXAMPLES_DIR
-    examples_dir = examples_base_dir / example
-    if not examples_dir.exists():
+    example_dir = examples_base_dir / example
+    if not example_dir.exists():
         raise HTTPException(
-            status_code=404, detail=f"Example {example} not found at {examples_dir}"
+            status_code=404, detail=f"Example {example} not found at {example_dir}"
         )
 
     try:
         print(f"Creating zip file at: {dst_zip_file}")
         with zipfile.ZipFile(str(dst_zip_file), "w", zipfile.ZIP_DEFLATED) as zip_out:
-            for file_path in examples_dir.rglob("*"):
+            for file_path in example_dir.rglob("*"):
                 if file_path.is_file():
                     if "fastled_js" in file_path.parts:
                         continue
