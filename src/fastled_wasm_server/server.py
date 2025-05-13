@@ -1,13 +1,11 @@
 import json
 import os
-import threading
 import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Timer
 
-import psutil  # type: ignore
 from disklru import DiskLRUCache  # type: ignore
 from fastapi import (  # type: ignore
     BackgroundTasks,
@@ -36,6 +34,7 @@ from fastled_wasm_server.paths import (  # The folder where the actual source co
 from fastled_wasm_server.server_fetch_example import (
     fetch_example,
 )
+from fastled_wasm_server.server_misc import start_memory_watchdog
 from fastled_wasm_server.server_serve_src_files import (
     fetch_drawfsource,
     fetch_source_file,
@@ -67,8 +66,7 @@ _COMPILER_STATS = CompilerStats()
 _TEST = False
 _UPLOAD_LIMIT = 10 * 1024 * 1024
 _MEMORY_LIMIT_MB = int(os.environ.get("MEMORY_LIMIT_MB", "0"))  # 0 means disabled
-_MEMORY_CHECK_INTERVAL = 0.1  # Check every 100ms
-_MEMORY_EXCEEDED_EXIT_CODE = 137  # Standard OOM kill code
+
 # Protect the endpoints from random bots.
 # Note that that the wasm_compiler.py greps for this string to get the URL of the server.
 # Changing the name could break the compiler.
@@ -151,7 +149,7 @@ async def lifespan(app: FastAPI):  # type: ignore
 
     if _MEMORY_LIMIT_MB > 0:
         print(f"Starting memory watchdog (limit: {_MEMORY_LIMIT_MB}MB)")
-        memory_watchdog()
+        start_memory_watchdog(_MEMORY_LIMIT_MB)
 
     _CODE_SYNC.sync_source_directory_if_volume_is_mapped()
 
@@ -207,26 +205,6 @@ def sync_live_git_to_target() -> None:
     Timer(
         _LIVE_GIT_UPDATES_INTERVAL, sync_live_git_to_target
     ).start()  # Start the periodic git update
-
-
-def memory_watchdog() -> None:
-    """Monitor memory usage and kill process if it exceeds limit."""
-    if _MEMORY_LIMIT_MB <= 0:
-        return
-
-    def check_memory() -> None:
-        while True:
-            process = psutil.Process(os.getpid())
-            memory_mb = process.memory_info().rss / 1024 / 1024
-            if memory_mb > _MEMORY_LIMIT_MB:
-                print(
-                    f"Memory limit exceeded! Using {memory_mb:.1f}MB > {_MEMORY_LIMIT_MB}MB limit"
-                )
-                os._exit(_MEMORY_EXCEEDED_EXIT_CODE)
-            time.sleep(_MEMORY_CHECK_INTERVAL)
-
-    watchdog_thread = threading.Thread(target=check_memory, daemon=True)
-    watchdog_thread.start()
 
 
 def get_settings() -> dict:
