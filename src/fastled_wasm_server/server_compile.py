@@ -3,6 +3,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import threading
 import time
 import traceback
 import warnings
@@ -82,6 +83,7 @@ def _compile_source(
     build_mode: str,
     only_quick_builds: bool,
     profile: bool,
+    compiler_lock: threading.Lock,
     hash_value: str | None = None,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
@@ -115,7 +117,7 @@ def _compile_source(
     _print("Files are ready, waiting for compile lock...")
     compile_lock_start = time.time()
 
-    with COMPILE_LOCK:
+    with compiler_lock:
         compiled_lock_end = time.time()
 
         # is_debug = build_mode.lower() == "debug"
@@ -357,6 +359,7 @@ def server_compile(
             build_mode=build,
             only_quick_builds=only_quick_builds,
             profile=do_profile,
+            compiler_lock=COMPILE_LOCK,
             hash_value=hash_value,
         )
         if isinstance(out, HTTPException):
