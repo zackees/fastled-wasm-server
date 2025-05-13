@@ -113,10 +113,10 @@ def _compile_source(
         )
 
     _print("Files are ready, waiting for compile lock...")
-    COMPILE_LOCK_start = time.time()
+    compile_lock_start = time.time()
 
     with COMPILE_LOCK:
-        COMPILE_LOCK_end = time.time()
+        compiled_lock_end = time.time()
 
         # is_debug = build_mode.lower() == "debug"
 
@@ -157,8 +157,8 @@ def _compile_source(
                 detail=f"Compilation failed with return code {return_code}:\n{stdout}",
             )
         COMPILE_SUCCESSES += 1
-    compile_time = time.time() - COMPILE_LOCK_end
-    COMPILE_LOCK_time = COMPILE_LOCK_end - COMPILE_LOCK_start
+    compile_time = time.time() - compiled_lock_end
+    COMPILE_LOCK_time = compiled_lock_end - compile_lock_start
 
     print(f"\nCompiler output:\nstdout:\n{stdout}")
     print(f"Compile lock time: {COMPILE_LOCK_time:.2f}s")
@@ -229,12 +229,6 @@ def _compile_source(
         cleanup_files.append(temp_src_dir)
 
     _print(f"\nReturning output zip: {output_zip_path}")
-    # return FileResponse(
-    #     path=output_zip_path,
-    #     media_type="application/zip",
-    #     filename="fastled_output.zip",
-    #     background=background_tasks,
-    # )
     out: CompileResult = CompileResult(
         output_zip_path=output_zip_path,
         filename="fastled_output.zip",
