@@ -1,0 +1,361 @@
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+import time
+import traceback
+import warnings
+import zipfile
+import zlib
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+from disklru import DiskLRUCache  # type: ignore
+from fastapi import (  # type: ignore
+    BackgroundTasks,
+    HTTPException,
+    UploadFile,
+)
+from fastapi.responses import FileResponse  # type: ignore
+
+from fastled_wasm_server.code_sync import CodeSync
+from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
+from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
+    OUTPUT_DIR,
+)
+from fastled_wasm_server.sketch_hasher import (
+    generate_hash_of_project_files,  # type: ignore
+)
+
+
+def try_get_cached_zip(sketch_cache: DiskLRUCache, hash: str) -> bytes | None:
+    return sketch_cache.get_bytes(hash)
+
+
+def cache_put(sketch_cache: DiskLRUCache, hash: str, data: bytes) -> None:
+    sketch_cache.put_bytes(hash, data)
+
+
+COMPILE_COUNT = 0
+COMPILE_FAILURES = 0
+COMPILE_SUCCESSES = 0
+
+
+def _compile_source(
+    temp_src_dir: Path,
+    file_path: Path,
+    background_tasks: BackgroundTasks,
+    build_mode: str,
+    only_quick_builds: bool,
+    profile: bool,
+    hash_value: str | None = None,
+) -> FileResponse | HTTPException:
+    """Compile source code and return compiled artifacts as a zip file."""
+    epoch = time.time()
+
+    def _print(msg) -> None:
+        diff = time.time() - epoch
+        print(f" = SERVER {diff:.2f}s = {msg}")
+
+    if build_mode.lower() != "quick" and only_quick_builds:
+        raise HTTPException(
+            status_code=400,
+            detail="Only quick builds are allowed in this version.",
+        )
+
+    _print("Starting compile_source")
+    global COMPILE_COUNT
+    global COMPILE_FAILURES
+    global COMPILE_SUCCESSES
+    COMPILE_COUNT += 1
+    temp_zip_dir = None
+    try:
+        # Find the first directory in temp_src_dir
+        src_dir = next(Path(temp_src_dir).iterdir())
+        _print(f"\nFound source directory: {src_dir}")
+    except StopIteration:
+        return HTTPException(
+            status_code=500,
+            detail=f"No files found in extracted directory: {temp_src_dir}",
+        )
+
+    _print("Files are ready, waiting for compile lock...")
+    COMPILE_LOCK_start = time.time()
+
+    with COMPILE_LOCK:
+        COMPILE_LOCK_end = time.time()
+
+        # is_debug = build_mode.lower() == "debug"
+
+        _print("\nRunning compiler...")
+        cmd = [
+            "python",
+            "run.py",
+            "compile",
+            f"--mapped-dir={temp_src_dir}",
+        ]
+        # if is_debug:
+        #    cmd += ["--no-platformio"]  # fast path that doesn't need a lock.
+        cmd.append(f"--{build_mode.lower()}")
+        if profile:
+            cmd.append("--profile")
+        proc = subprocess.Popen(
+            cmd,
+            cwd="/js",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        assert proc.stdout is not None
+        stdout_lines: list[str] = []
+
+        for line in iter(proc.stdout.readline, ""):
+            print(line, end="")
+            stdout_lines.append(line)
+        _print("Compiler finished.")
+        stdout = "".join(stdout_lines)
+        proc.stdout.close()
+        return_code = proc.wait()
+        if return_code != 0:
+            COMPILE_FAILURES += 1
+            print(f"Compilation failed with return code {return_code}:\n{stdout}")
+            return HTTPException(
+                status_code=400,
+                detail=f"Compilation failed with return code {return_code}:\n{stdout}",
+            )
+        COMPILE_SUCCESSES += 1
+    compile_time = time.time() - COMPILE_LOCK_end
+    COMPILE_LOCK_time = COMPILE_LOCK_end - COMPILE_LOCK_start
+
+    print(f"\nCompiler output:\nstdout:\n{stdout}")
+    print(f"Compile lock time: {COMPILE_LOCK_time:.2f}s")
+    print(f"Compile time: {compile_time:.2f}s")
+
+    # Find the fastled_js directory
+    fastled_js_dir = src_dir / "fastled_js"
+    print(f"\nLooking for fastled_js directory at: {fastled_js_dir}")
+
+    _print("Looking for fastled_js directory...")
+    if not fastled_js_dir.exists():
+        print(f"Directory contents of {src_dir}:")
+        for path in src_dir.rglob("*"):
+            print(f"  {path}")
+        return HTTPException(
+            status_code=500,
+            detail=f"Compilation artifacts not found at {fastled_js_dir}",
+        )
+    _print("Found fastled_js directory, zipping...")
+
+    # Replace separate stdout/stderr files with single out.txt
+    out_txt = fastled_js_dir / "out.txt"
+    perf_txt = fastled_js_dir / "perf.txt"
+    hash_txt = fastled_js_dir / "hash.txt"
+    print(f"\nSaving combined output to: {out_txt}")
+    out_txt.write_text(stdout)
+    perf_txt.write_text(
+        f"Compile lock time: {COMPILE_LOCK_time:.2f}s\nCompile time: {compile_time:.2f}s"
+    )
+    if hash_value is not None:
+        hash_txt.write_text(hash_value)
+
+    OUTPUT_DIR.mkdir(exist_ok=True)  # Ensure output directory exists
+    output_zip_path = OUTPUT_DIR / f"fastled_output_{hash(str(file_path))}.zip"
+    _print(f"\nCreating output zip at: {output_zip_path}")
+
+    start_zip = time.time()
+    try:
+        with zipfile.ZipFile(
+            output_zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=1
+        ) as zip_out:
+            _print("\nAdding files to output zip:")
+            for file_path in fastled_js_dir.rglob("*"):
+                if file_path.is_file():
+                    arc_path = file_path.relative_to(fastled_js_dir)
+                    _print(f"  Adding: {arc_path}")
+                    zip_out.write(file_path, arc_path)
+    except zipfile.BadZipFile as e:
+        _print(f"Error creating zip file: {e}")
+        return HTTPException(status_code=500, detail=f"Failed to create zip file: {e}")
+    except zlib.error as e:
+        _print(f"Compression error: {e}")
+        return HTTPException(
+            status_code=500, detail=f"Zip compression failed - zlib error: {e}"
+        )
+    except Exception as e:
+        _print(f"Unexpected error creating zip: {e}")
+        return HTTPException(status_code=500, detail=f"Failed to create zip file: {e}")
+    zip_time = time.time() - start_zip
+    print(f"Zip file created in {zip_time:.2f}s")
+
+    def cleanup_files(output_zip_path=output_zip_path, temp_zip_dir=temp_zip_dir):
+        if output_zip_path.exists():
+            output_zip_path.unlink()
+        if temp_zip_dir:
+            shutil.rmtree(temp_zip_dir, ignore_errors=True)
+        if temp_src_dir:
+            shutil.rmtree(temp_src_dir, ignore_errors=True)
+
+    background_tasks.add_task(cleanup_files)
+    _print(f"\nReturning output zip: {output_zip_path}")
+    return FileResponse(
+        path=output_zip_path,
+        media_type="application/zip",
+        filename="fastled_output.zip",
+        background=background_tasks,
+    )
+
+
+def server_compile(
+    file: UploadFile,
+    build: str,
+    profile: str,
+    sketch_cache: DiskLRUCache,
+    use_sketch_cache: bool,
+    code_sync: CodeSync,
+    only_quick_builds: bool,
+    background_tasks: BackgroundTasks,
+) -> FileResponse:
+    """Upload a file into a temporary directory."""
+    if build is not None:
+        build = build.lower()
+
+    if build not in ["quick", "release", "debug", None]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid build mode. Must be one of 'quick', 'release', or 'debug' or omitted",
+        )
+    do_profile: bool = False
+    if profile is not None:
+        do_profile = profile.lower() == "true" or profile.lower() == "1"
+    print(f"Build mode is {build}")
+    build = build or "quick"
+    print(f"Starting upload process for file: {file.filename}")
+
+    # if not _TEST and authorization != _AUTH_TOKEN:
+    #     raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if file is None:
+        raise HTTPException(status_code=400, detail="No file uploaded.")
+
+    if file.filename is None:
+        raise HTTPException(status_code=400, detail="No filename provided.")
+
+    if not file.filename.endswith(".zip"):
+        raise HTTPException(
+            status_code=400, detail="Uploaded file must be a zip archive."
+        )
+
+    temp_zip_dir = None
+    temp_src_dir = None
+
+    try:
+        # Create temporary directories - one for zip, one for source
+        temp_zip_dir = tempfile.mkdtemp()
+        temp_src_dir = tempfile.mkdtemp()
+        print(
+            f"Created temporary directories:\nzip_dir: {temp_zip_dir}\nsrc_dir: {temp_src_dir}"
+        )
+
+        file_path = Path(temp_zip_dir) / file.filename
+        print(f"Saving uploaded file to: {file_path}")
+
+        # Simple file save since size is already checked by middleware
+        with open(file_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        print("extracting zip file...")
+        hash_value: str | None = None
+        with zipfile.ZipFile(file_path, "r") as zip_ref:
+            # Extract everything first
+            zip_ref.extractall(temp_src_dir)
+
+            # Then find and remove any platformio.ini files
+            platform_files = list(Path(temp_src_dir).rglob("*platformio.ini"))
+            if platform_files:
+                warnings.warn(f"Removing platformio.ini files: {platform_files}")
+                for p in platform_files:
+                    p.unlink()
+
+            try:
+                hash_value = generate_hash_of_project_files(Path(temp_src_dir))
+            except Exception as e:
+                warnings.warn(
+                    f"Error generating hash: {e}, fast cache access is disabled for this build."
+                )
+
+        def on_files_changed() -> None:
+            print("Source files changed, clearing cache")
+            sketch_cache.clear()
+
+        code_sync.sync_source_directory_if_volume_is_mapped(callback=on_files_changed)
+
+        entry: bytes | None = None
+        if hash_value is not None:
+            print(f"Hash of source files: {hash_value}")
+            if use_sketch_cache:
+                entry = try_get_cached_zip(sketch_cache=sketch_cache, hash=hash_value)
+        if entry is not None:
+            print("Returning cached zip file")
+            # Create a temporary file for the cached data
+            tmp_file = NamedTemporaryFile(delete=False)
+            tmp_file.write(entry)
+            tmp_file.close()
+
+            def cleanup_temp():
+                try:
+                    os.unlink(tmp_file.name)
+                except:  # noqa: E722
+                    pass
+
+            background_tasks.add_task(cleanup_temp)
+
+            return FileResponse(
+                path=tmp_file.name,
+                media_type="application/zip",
+                filename="fastled_output.zip",
+                background=background_tasks,
+            )
+
+        print("\nContents of source directory:")
+        for path in Path(temp_src_dir).rglob("*"):
+            print(f"  {path}")
+        out = _compile_source(
+            temp_src_dir=Path(temp_src_dir),
+            file_path=file_path,
+            background_tasks=background_tasks,
+            build_mode=build,
+            only_quick_builds=only_quick_builds,
+            profile=do_profile,
+            hash_value=hash_value,
+        )
+        if isinstance(out, HTTPException):
+            print("Raising HTTPException")
+            txt = out.detail
+            json_str = json.dumps(txt)
+            warnings.warn(f"Error compiling source: {json_str}")
+            raise out
+        # Cache the compiled zip file
+        out_path = Path(out.path)
+        data = out_path.read_bytes()
+        if hash_value is not None and use_sketch_cache:
+            cache_put(sketch_cache=sketch_cache, hash=hash_value, data=data)
+        return out
+    except HTTPException as e:
+        stacktrace = traceback.format_exc()
+        print(f"HTTPException in upload process: {str(e)}\n{stacktrace}")
+        raise e
+
+    except Exception as e:
+        stack_trace = traceback.format_exc()
+        print(f"Error in upload process: {stack_trace}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Upload process failed: {str(e)}\nTrace: {e.__traceback__}",
+        )
+    finally:
+        # Clean up in case of error
+        if temp_zip_dir:
+            shutil.rmtree(temp_zip_dir, ignore_errors=True)
+        if temp_src_dir:
+            shutil.rmtree(temp_src_dir, ignore_errors=True)
