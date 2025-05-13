@@ -36,17 +36,6 @@ def cache_put(sketch_cache: DiskLRUCache, hash: str, data: bytes) -> None:
     sketch_cache.put_bytes(hash, data)
 
 
-# COMPILE_COUNT = 0
-# COMPILE_FAILURES = 0
-# COMPILE_SUCCESSES = 0
-
-
-# path=output_zip_path,
-# media_type="application/zip",
-# filename="fastled_output.zip",
-# background=background_tasks,
-
-
 @dataclass
 class CompileResult:
     """A class to represent the result of a compile operation."""
@@ -57,12 +46,6 @@ class CompileResult:
 
 
 def _cleanup_files(paths: list[Path]) -> None:
-    # if output_zip_path.exists():
-    #     output_zip_path.unlink()
-    # if temp_zip_dir:
-    #     shutil.rmtree(temp_zip_dir, ignore_errors=True)
-    # if temp_src_dir:
-    #     shutil.rmtree(temp_src_dir, ignore_errors=True)
     for path in paths:
         if path.exists():
             if path.is_file():
