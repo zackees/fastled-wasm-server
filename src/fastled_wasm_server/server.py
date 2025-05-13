@@ -4,7 +4,6 @@ import subprocess
 import threading
 import time
 import warnings
-import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Timer
@@ -28,14 +27,15 @@ from fastled_wasm_server import server_compile
 from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
-    FASTLED_EXAMPLES_DIR,
     FASTLED_SRC,
     LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
     SKETCH_CACHE_FILE,
-    TEMP_DIR,
     UPLOAD_DIR,
     VOLUME_MAPPED_SRC,
+)
+from fastled_wasm_server.server_fetch_example import (
+    fetch_example,
 )
 from fastled_wasm_server.server_serve_src_files import (
     fetch_drawfsource,
@@ -352,67 +352,12 @@ async def compiler_in_use() -> dict:
     return {"in_use": COMPILE_LOCK.locked()}
 
 
-def zip_example_to_file(example: str, dst_zip_file: Path) -> None:
-    examples_base_dir = FASTLED_EXAMPLES_DIR
-    example_dir = examples_base_dir / example
-    if not example_dir.exists():
-        raise HTTPException(
-            status_code=404, detail=f"Example {example} not found at {example_dir}"
-        )
-
-    try:
-        print(f"Creating zip file at: {dst_zip_file}")
-        with zipfile.ZipFile(str(dst_zip_file), "w", zipfile.ZIP_DEFLATED) as zip_out:
-            for file_path in example_dir.rglob("*"):
-                if file_path.is_file():
-                    if "fastled_js" in file_path.parts:
-                        continue
-                    arc_path = file_path.relative_to(examples_base_dir)
-                    zip_out.write(file_path, arc_path)
-        print(f"Zip file created at: {dst_zip_file}")
-    except Exception as e:
-        warnings.warn(f"Error: {e}")
-        raise
-
-
-def make_random_path_string(digits: int) -> str:
-    """Generate a random number."""
-    import random
-    import string
-
-    return "".join(random.choices(string.ascii_lowercase + string.digits, k=digits))
-
-
 @app.get("/project/init")
 def project_init(background_tasks: BackgroundTasks) -> FileResponse:
     """Archive /js/fastled/examples/wasm into a zip file and return it."""
     print("Endpoint accessed: /project/init")
-    # tmp_zip_file = NamedTemporaryFile(delete=False)
-    # tmp_zip_path = Path(tmp_zip_file.name)
-
-    tmp_zip_path = TEMP_DIR / f"wasm-{make_random_path_string(16)}.zip"
-    zip_example_to_file("wasm", tmp_zip_path)
-
-    # assert tmp_zip_path.exists()
-    if not tmp_zip_path.exists():
-        warnings.warn("Failed to create zip file for wasm example.")
-        raise HTTPException(
-            status_code=500, detail="Failed to create zip file for wasm example."
-        )
-
-    def cleanup() -> None:
-        try:
-            os.unlink(tmp_zip_path)
-        except Exception as e:
-            warnings.warn(f"Error cleaning up: {e}")
-
-    background_tasks.add_task(cleanup)
-    return FileResponse(
-        path=tmp_zip_path,
-        media_type="application/zip",
-        filename="fastled_example.zip",
-        background=background_tasks,
-    )
+    response: FileResponse = fetch_example(background_tasks=background_tasks)
+    return response
 
 
 @app.post("/project/init")
@@ -421,32 +366,10 @@ def project_init_example(
 ) -> FileResponse:
     """Archive /js/fastled/examples/{example} into a zip file and return it."""
     print(f"Endpoint accessed: /project/init/example with example: {example}")
-    if ".." in example:
-        raise HTTPException(status_code=400, detail="Invalid example name.")
-    name = Path("example").name
-    tmp_file_path = TEMP_DIR / f"{name}-{make_random_path_string(16)}.zip"
-    zip_example_to_file(example, Path(tmp_file_path))
-
-    if not tmp_file_path.exists():
-        warnings.warn(f"Failed to create zip file for {example} example.")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to create zip file for {example} example."
-        )
-
-    def cleanup() -> None:
-        try:
-            os.unlink(tmp_file_path)
-        except Exception as e:
-            warnings.warn(f"Error cleaning up: {e}")
-            raise
-
-    background_tasks.add_task(cleanup)
-    return FileResponse(
-        path=tmp_file_path,
-        media_type="application/zip",
-        filename="fastled_example.zip",
-        background=background_tasks,
+    out: FileResponse = fetch_example(
+        background_tasks=background_tasks, example=example
     )
+    return out
 
 
 @app.get("/sourcefiles/{filepath:path}")
