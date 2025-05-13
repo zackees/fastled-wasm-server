@@ -28,6 +28,7 @@ from fastled_wasm_server import server_compile
 from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
+    FASTLED_EXAMPLES_DIR,
     FASTLED_SRC,
     LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
@@ -376,7 +377,10 @@ async def compiler_in_use() -> dict:
 
 
 def zip_example_to_file(example: str, dst_zip_file: Path) -> None:
-    examples_dir = Path(f"/js/fastled/examples/{example}")
+    # examples_dir = Path(f"/js/fastled/examples/{example}")
+    # examples_base_dir = FASTLED_SRC.parent / "examples"
+    examples_base_dir = FASTLED_EXAMPLES_DIR
+    examples_dir = examples_base_dir / example
     if not examples_dir.exists():
         raise HTTPException(
             status_code=404, detail=f"Example {example} not found at {examples_dir}"
@@ -389,7 +393,7 @@ def zip_example_to_file(example: str, dst_zip_file: Path) -> None:
                 if file_path.is_file():
                     if "fastled_js" in file_path.parts:
                         continue
-                    arc_path = file_path.relative_to(Path("/js/fastled/examples"))
+                    arc_path = file_path.relative_to(examples_base_dir)
                     zip_out.write(file_path, arc_path)
         print(f"Zip file created at: {dst_zip_file}")
     except Exception as e:
