@@ -22,6 +22,7 @@ from starlette.requests import Request
 from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
+    COMPILER_ROOT,
     FASTLED_SRC,
     LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
@@ -108,7 +109,7 @@ _CODE_SYNC = CodeSync(
 )
 
 _COMPILER = ServerWasmCompiler(
-    compiler_root=FASTLED_SRC,
+    compiler_root=COMPILER_ROOT,
     sketch_cache=SKETCH_CACHE,
     code_sync=_CODE_SYNC,
     only_quick_builds=_ONLY_QUICK_BUILDS,
