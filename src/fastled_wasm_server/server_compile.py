@@ -113,7 +113,7 @@ def _compile_source(
         quick=build_mode.lower() == "quick",
         release=build_mode.lower() == "release",
     )
-    cmd = args.to_cmd_args()
+    cmd = ["fastled-wasm-compiler"] + args.to_cmd_args()
 
     with compiler_lock:
         compiled_lock_end = time.time()
