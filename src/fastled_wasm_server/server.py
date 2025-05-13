@@ -4,7 +4,6 @@ import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
-from threading import Timer
 
 from disklru import DiskLRUCache  # type: ignore
 from fastapi import (  # type: ignore
@@ -25,7 +24,6 @@ from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
     FASTLED_SRC,
-    LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
     SKETCH_CACHE_FILE,
     UPLOAD_DIR,
@@ -39,7 +37,9 @@ from fastled_wasm_server.server_serve_src_files import (
     fetch_drawfsource,
     fetch_source_file,
 )
-from fastled_wasm_server.server_update_live_git_repo import update_live_git_repo
+from fastled_wasm_server.server_update_live_git_repo import (
+    start_sync_live_git_to_target,
+)
 from fastled_wasm_server.types import CompilerStats
 
 _EXAMPLES: list[str] = [
@@ -85,15 +85,6 @@ _ONLY_QUICK_BUILDS = os.environ.get("ONLY_QUICK_BUILDS", "false").lower() in [
 ]
 
 
-# TODO - cleanup
-_NO_AUTO_UPDATE = (
-    os.environ.get("NO_AUTO_UPDATE", "0") in ["1", "true"] or VOLUME_MAPPED_SRC.exists()
-)
-# This feature is broken. To fix, issue a git update, THEN invoke the compiler command to re-warm the cache.
-# otherwise you get worst case scenario on a new compile.
-# _LIVE_GIT_UPDATES_ENABLED = (not _NO_AUTO_UPDATE) or (
-#     os.environ.get("LIVE_GIT_UPDATES", "0") in ["1", "true"]
-# )
 _LIVE_GIT_UPDATES_ENABLED = False
 
 
@@ -154,9 +145,13 @@ async def lifespan(app: FastAPI):  # type: ignore
     _CODE_SYNC.sync_source_directory_if_volume_is_mapped()
 
     if _LIVE_GIT_UPDATES_ENABLED:
-        Timer(
-            _LIVE_GIT_UPDATES_INTERVAL, sync_live_git_to_target
-        ).start()  # Start the periodic git update
+        start_sync_live_git_to_target(
+            compiler_lock=COMPILE_LOCK,
+            code_sync=_CODE_SYNC,
+            sketch_cache=SKETCH_CACHE,
+            fastled_src=FASTLED_SRC,
+            update_interval=_LIVE_GIT_UPDATES_INTERVAL,
+        )
     else:
         print("Auto updates disabled")
     yield  # end startup
@@ -180,31 +175,6 @@ def cache_put(hash: str, data: bytes) -> None:
         print("Sketch caching disabled, skipping cache put")
         return
     SKETCH_CACHE.put_bytes(hash, data)
-
-
-def sync_live_git_to_target() -> None:
-    if not _LIVE_GIT_UPDATES_ENABLED:
-        return
-    update_live_git_repo()  # no lock
-
-    def on_files_changed() -> None:
-        print("FastLED source changed from github repo, clearing disk cache.")
-        SKETCH_CACHE.clear()
-
-    _CODE_SYNC.sync_src_to_target(
-        volume_mapped_src=LIVE_GIT_FASTLED_DIR / "src",
-        rsync_dest=FASTLED_SRC,
-        callback=on_files_changed,
-    )
-    _CODE_SYNC.sync_src_to_target(
-        volume_mapped_src=LIVE_GIT_FASTLED_DIR / "examples",
-        rsync_dest=FASTLED_SRC.parent / "examples",
-        callback=on_files_changed,
-    )
-    # Basically a setTimeout() in JS.
-    Timer(
-        _LIVE_GIT_UPDATES_INTERVAL, sync_live_git_to_target
-    ).start()  # Start the periodic git update
 
 
 def get_settings() -> dict:

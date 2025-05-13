@@ -1,6 +1,12 @@
 import subprocess
+import threading
 import warnings
+from pathlib import Path
+from threading import Timer
 
+from disklru import DiskLRUCache  # type: ignore
+
+from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.paths import LIVE_GIT_FASTLED_DIR
 
 
@@ -37,3 +43,33 @@ def update_live_git_repo() -> None:
         warnings.warn(
             f"Error updating live FastLED repository: {e.stdout}\n\n{e.stderr}"
         )
+
+
+def start_sync_live_git_to_target(
+    compiler_lock: threading.Lock,
+    code_sync: CodeSync,
+    sketch_cache: DiskLRUCache,
+    fastled_src: Path,
+    update_interval: int,
+) -> None:
+    update_live_git_repo()  # no lock
+
+    def on_files_changed() -> None:
+        print("FastLED source changed from github repo, clearing disk cache.")
+        sketch_cache.clear()
+
+    with compiler_lock:
+        code_sync.sync_src_to_target(
+            volume_mapped_src=LIVE_GIT_FASTLED_DIR / "src",
+            rsync_dest=fastled_src,
+            callback=on_files_changed,
+        )
+    code_sync.sync_src_to_target(
+        volume_mapped_src=LIVE_GIT_FASTLED_DIR / "examples",
+        rsync_dest=fastled_src.parent / "examples",
+        callback=on_files_changed,
+    )
+    # Basically a setTimeout() in JS.
+    Timer(
+        update_interval, start_sync_live_git_to_target
+    ).start()  # Start the periodic git update
