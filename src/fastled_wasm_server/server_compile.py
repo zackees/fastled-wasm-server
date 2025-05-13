@@ -22,6 +22,7 @@ from fastapi import (  # type: ignore
 from fastapi.responses import FileResponse  # type: ignore
 
 from fastled_wasm_server.code_sync import CodeSync
+from fastled_wasm_server.paths import COMPILER_ROOT
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
 )
@@ -115,7 +116,7 @@ def _compile_source(
             cmd.append("--profile")
         proc = subprocess.Popen(
             cmd,
-            cwd="/js",
+            cwd=COMPILER_ROOT.as_posix(),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
