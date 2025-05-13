@@ -2,6 +2,9 @@
 
 FastLED WASM Server + Compiler
 
+Right now this is only designed to work
+in a container. It will not work if you try
+to run this outside of a container.
 
 # Develop
 
