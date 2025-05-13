@@ -1,6 +1,5 @@
 import json
 import os
-import subprocess
 import threading
 import time
 import warnings
@@ -41,6 +40,7 @@ from fastled_wasm_server.server_serve_src_files import (
     fetch_drawfsource,
     fetch_source_file,
 )
+from fastled_wasm_server.server_update_live_git_repo import update_live_git_repo
 from fastled_wasm_server.types import CompilerStats
 
 _EXAMPLES: list[str] = [
@@ -168,43 +168,6 @@ async def lifespan(app: FastAPI):  # type: ignore
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(UploadSizeMiddleware, max_upload_size=_UPLOAD_LIMIT)
-
-
-def update_live_git_repo() -> None:
-    if not _LIVE_GIT_UPDATES_ENABLED:
-        return
-    try:
-        if not LIVE_GIT_FASTLED_DIR.exists():
-            subprocess.run(
-                [
-                    "git",
-                    "clone",
-                    "https://github.com/fastled/fastled.git",
-                    str(LIVE_GIT_FASTLED_DIR),
-                    "--depth=1",
-                ],
-                check=True,
-            )
-            print("Cloned live FastLED repository")
-        else:
-            print("Updating live FastLED repository")
-            subprocess.run(
-                ["git", "fetch", "origin"],
-                check=True,
-                capture_output=True,
-                cwd=LIVE_GIT_FASTLED_DIR,
-            )
-            subprocess.run(
-                ["git", "reset", "--hard", "origin/master"],
-                check=True,
-                capture_output=True,
-                cwd=LIVE_GIT_FASTLED_DIR,
-            )
-            print("Live FastLED repository updated successfully")
-    except subprocess.CalledProcessError as e:
-        warnings.warn(
-            f"Error updating live FastLED repository: {e.stdout}\n\n{e.stderr}"
-        )
 
 
 def try_get_cached_zip(hash: str) -> bytes | None:
@@ -397,15 +360,9 @@ def info_examples() -> dict:
             Path("/image_timestamp.txt").read_text(encoding="utf-8").strip()
         )
     except Exception as e:
-
         warnings.warn(f"Error reading build timestamp: {e}")
         build_timestamp = "unknown"
-
-    # ARG FASTLED_VERSION=3.9.11
-    # ENV FASTLED_VERSION=${FASTLED_VERSION}
-
     fastled_version = os.environ.get("FASTLED_VERSION", "unknown")
-
     out = {
         "examples": _EXAMPLES,
         "compile_count": _COMPILER_STATS.compile_count,
