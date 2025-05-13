@@ -25,6 +25,7 @@ from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
 )
+from fastled_wasm_server.types import CompilerStats
 
 
 def try_get_cached_zip(sketch_cache: DiskLRUCache, hash: str) -> bytes | None:
@@ -35,9 +36,9 @@ def cache_put(sketch_cache: DiskLRUCache, hash: str, data: bytes) -> None:
     sketch_cache.put_bytes(hash, data)
 
 
-COMPILE_COUNT = 0
-COMPILE_FAILURES = 0
-COMPILE_SUCCESSES = 0
+# COMPILE_COUNT = 0
+# COMPILE_FAILURES = 0
+# COMPILE_SUCCESSES = 0
 
 
 # path=output_zip_path,
@@ -81,6 +82,7 @@ def _compile_source(
     profile: bool,
     compiler_lock: threading.Lock,
     output_dir: Path,
+    stats: CompilerStats,
     hash_value: str | None = None,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
@@ -97,10 +99,7 @@ def _compile_source(
         )
 
     _print("Starting compile_source")
-    global COMPILE_COUNT
-    global COMPILE_FAILURES
-    global COMPILE_SUCCESSES
-    COMPILE_COUNT += 1
+    stats.compile_count += 1
     try:
         # Find the first directory in temp_src_dir
         src_dir = next(Path(temp_src_dir).iterdir())
@@ -149,13 +148,15 @@ def _compile_source(
         proc.stdout.close()
         return_code = proc.wait()
         if return_code != 0:
-            COMPILE_FAILURES += 1
+            # COMPILE_FAILURES += 1
+            stats.compile_failures += 1
             print(f"Compilation failed with return code {return_code}:\n{stdout}")
             return HTTPException(
                 status_code=400,
                 detail=f"Compilation failed with return code {return_code}:\n{stdout}",
             )
-        COMPILE_SUCCESSES += 1
+        # COMPILE_SUCCESSES += 1
+        stats.compile_successes += 1
     compile_time = time.time() - compiled_lock_end
     COMPILE_LOCK_time = compiled_lock_end - compile_lock_start
 
@@ -245,6 +246,7 @@ def server_compile(
     code_sync: CodeSync,
     only_quick_builds: bool,
     output_dir: Path,
+    stats: CompilerStats,
     compiler_lock: threading.Lock,
     background_tasks: BackgroundTasks,
 ) -> FileResponse:
@@ -360,6 +362,7 @@ def server_compile(
             profile=do_profile,
             output_dir=output_dir,
             compiler_lock=compiler_lock,
+            stats=stats,
             hash_value=hash_value,
         )
         if isinstance(out, HTTPException):

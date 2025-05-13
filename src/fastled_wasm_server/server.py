@@ -36,6 +36,7 @@ from fastled_wasm_server.paths import (  # The folder where the actual source co
     UPLOAD_DIR,
     VOLUME_MAPPED_SRC,
 )
+from fastled_wasm_server.types import CompilerStats
 
 _EXAMPLES: list[str] = [
     "Chromancer",
@@ -56,6 +57,7 @@ _EXAMPLES: list[str] = [
     "FireCylinder",
 ]
 
+_COMPILER_STATS = CompilerStats()
 
 _TEST = False
 _UPLOAD_LIMIT = 10 * 1024 * 1024
@@ -550,9 +552,9 @@ def info_examples() -> dict:
 
     out = {
         "examples": _EXAMPLES,
-        "compile_count": server_compile.COMPILE_COUNT,
-        "compile_failures": server_compile.COMPILE_FAILURES,
-        "compile_successes": server_compile.COMPILE_SUCCESSES,
+        "compile_count": _COMPILER_STATS.compile_count,
+        "compile_failures": _COMPILER_STATS.compile_failures,
+        "compile_successes": _COMPILER_STATS.compile_successes,
         "uptime": uptime_fmtd,
         "build_timestamp": build_timestamp,
         "fastled_version": fastled_version,
@@ -586,6 +588,7 @@ def compile_wasm(
         only_quick_builds=_ONLY_QUICK_BUILDS,
         compiler_lock=COMPILE_LOCK,
         output_dir=OUTPUT_DIR,
+        stats=_COMPILER_STATS,
         background_tasks=background_tasks,
     )
 
