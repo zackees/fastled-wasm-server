@@ -244,26 +244,6 @@ def get_settings() -> dict:
     return settings
 
 
-def startup() -> None:
-    print("Starting FastLED wasm compiler server...")
-    try:
-        print(f"Settings: {json.dumps(get_settings(), indent=2)}")
-    except Exception as e:
-        print(f"Error getting settings: {e}")
-
-    if _MEMORY_LIMIT_MB > 0:
-        print(f"Starting memory watchdog (limit: {_MEMORY_LIMIT_MB}MB)")
-        memory_watchdog()
-
-    _CODE_SYNC.sync_source_directory_if_volume_is_mapped()
-    if _LIVE_GIT_UPDATES_ENABLED:
-        Timer(
-            _LIVE_GIT_UPDATES_INTERVAL, sync_live_git_to_target
-        ).start()  # Start the periodic git update
-    else:
-        print("Auto updates disabled")
-
-
 @app.get("/", include_in_schema=False)
 async def read_root() -> RedirectResponse:
     """Redirect to the /docs endpoint."""
