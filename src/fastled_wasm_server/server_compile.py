@@ -109,6 +109,7 @@ def _compile_source(
         profile=profile,
         disable_auto_clean=False,
         no_platformio=True,
+        clear_ccache=False,
         debug=build_mode.lower() == "debug",
         quick=build_mode.lower() == "quick",
         release=build_mode.lower() == "release",
