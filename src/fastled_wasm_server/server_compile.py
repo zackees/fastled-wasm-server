@@ -393,3 +393,45 @@ def server_compile(
             shutil.rmtree(temp_zip_dir, ignore_errors=True)
         if temp_src_dir:
             shutil.rmtree(temp_src_dir, ignore_errors=True)
+
+
+class ServerWasmCompiler:
+
+    def __init__(
+        self,
+        compiler_root: Path,
+        sketch_cache: DiskLRUCache,
+        code_sync: CodeSync,
+        compiler_lock: threading.Lock,
+        only_quick_builds: bool,
+    ):
+        self.compiler_root = compiler_root
+        self.sketch_cache = sketch_cache
+        self.code_sync = code_sync
+        self.compiler_lock = compiler_lock
+        self.only_quick_builds = only_quick_builds
+        self.stats = CompilerStats()
+
+    def compile(
+        self,
+        file: UploadFile,
+        build: str,
+        profile: str,
+        output_dir: Path,
+        background_tasks: BackgroundTasks,
+        use_sketch_cache: bool,
+    ) -> FileResponse:
+        return server_compile(
+            compiler_root=self.compiler_root,
+            file=file,
+            build=build,
+            profile=profile,
+            sketch_cache=self.sketch_cache,
+            use_sketch_cache=use_sketch_cache,
+            code_sync=self.code_sync,
+            only_quick_builds=self.only_quick_builds,
+            output_dir=output_dir,
+            stats=self.stats,
+            compiler_lock=self.compiler_lock,
+            background_tasks=background_tasks,
+        )

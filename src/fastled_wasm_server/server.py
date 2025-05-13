@@ -19,7 +19,6 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from fastled_wasm_server import server_compile
 from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
@@ -30,6 +29,7 @@ from fastled_wasm_server.paths import (  # The folder where the actual source co
     UPLOAD_DIR,
     VOLUME_MAPPED_SRC,
 )
+from fastled_wasm_server.server_compile import ServerWasmCompiler
 from fastled_wasm_server.server_fetch_example import (
     fetch_example,
 )
@@ -102,6 +102,19 @@ SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
 _SRC_FILE_FETCHER = SourceFileFetcher(fastled_src=FASTLED_SRC)
 
+_CODE_SYNC = CodeSync(
+    volume_mapped_src=VOLUME_MAPPED_SRC,
+    rsync_dest=FASTLED_SRC,
+)
+
+_COMPILER = ServerWasmCompiler(
+    compiler_root=FASTLED_SRC,
+    sketch_cache=SKETCH_CACHE,
+    code_sync=_CODE_SYNC,
+    only_quick_builds=_ONLY_QUICK_BUILDS,
+    compiler_lock=COMPILE_LOCK,
+)
+
 
 class UploadSizeMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, max_upload_size: int):
@@ -122,12 +135,6 @@ class UploadSizeMiddleware(BaseHTTPMiddleware):
                         content=f"File size exceeds {self.max_upload_size} byte limit, for large assets please put them in data/ directory to avoid uploading them to the server.",
                     )
         return await call_next(request)
-
-
-_CODE_SYNC = CodeSync(
-    volume_mapped_src=VOLUME_MAPPED_SRC,
-    rsync_dest=FASTLED_SRC,
-)
 
 
 @asynccontextmanager
@@ -320,20 +327,12 @@ def compile_wasm(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     print(f"Endpoint accessed: /compile/wasm with file: {file.filename}")
-
-    file_response = server_compile.server_compile(
-        compiler_root=FASTLED_SRC,
+    file_response = _COMPILER.compile(
         file=file,
         build=build,
         profile=profile,
-        sketch_cache=SKETCH_CACHE,
-        use_sketch_cache=not _NO_SKETCH_CACHE,
-        code_sync=_CODE_SYNC,
-        only_quick_builds=_ONLY_QUICK_BUILDS,
-        compiler_lock=COMPILE_LOCK,
         output_dir=OUTPUT_DIR,
-        stats=_COMPILER_STATS,
+        use_sketch_cache=not _NO_SKETCH_CACHE,
         background_tasks=background_tasks,
     )
-
     return file_response
