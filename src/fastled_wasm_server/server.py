@@ -584,6 +584,8 @@ def compile_wasm(
         use_sketch_cache=not _NO_SKETCH_CACHE,
         code_sync=_CODE_SYNC,
         only_quick_builds=_ONLY_QUICK_BUILDS,
+        compiler_lock=COMPILE_LOCK,
+        output_dir=OUTPUT_DIR,
         background_tasks=background_tasks,
     )
 

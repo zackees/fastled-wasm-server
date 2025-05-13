@@ -22,10 +22,6 @@ from fastapi import (  # type: ignore
 from fastapi.responses import FileResponse  # type: ignore
 
 from fastled_wasm_server.code_sync import CodeSync
-from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
-from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
-    OUTPUT_DIR,
-)
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
 )
@@ -84,6 +80,7 @@ def _compile_source(
     only_quick_builds: bool,
     profile: bool,
     compiler_lock: threading.Lock,
+    output_dir: Path,
     hash_value: str | None = None,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
@@ -193,8 +190,8 @@ def _compile_source(
     if hash_value is not None:
         hash_txt.write_text(hash_value)
 
-    OUTPUT_DIR.mkdir(exist_ok=True)  # Ensure output directory exists
-    output_zip_path = OUTPUT_DIR / f"fastled_output_{hash(str(file_path))}.zip"
+    output_dir.mkdir(exist_ok=True)  # Ensure output directory exists
+    output_zip_path = output_dir / f"fastled_output_{hash(str(file_path))}.zip"
     _print(f"\nCreating output zip at: {output_zip_path}")
 
     start_zip = time.time()
@@ -247,6 +244,8 @@ def server_compile(
     use_sketch_cache: bool,
     code_sync: CodeSync,
     only_quick_builds: bool,
+    output_dir: Path,
+    compiler_lock: threading.Lock,
     background_tasks: BackgroundTasks,
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
@@ -359,7 +358,8 @@ def server_compile(
             build_mode=build,
             only_quick_builds=only_quick_builds,
             profile=do_profile,
-            compiler_lock=COMPILE_LOCK,
+            output_dir=output_dir,
+            compiler_lock=compiler_lock,
             hash_value=hash_value,
         )
         if isinstance(out, HTTPException):
