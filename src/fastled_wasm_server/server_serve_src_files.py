@@ -4,8 +4,6 @@ from pathlib import Path
 from fastapi import HTTPException
 from fastapi.responses import Response
 
-from fastled_wasm_server.paths import FASTLED_SRC
-
 
 @dataclass
 class SourceFileBytes:
@@ -22,14 +20,16 @@ class SourceFileBytes:
 
 
 # Return content and media type
-def fetch_file(full_path: Path) -> SourceFileBytes | HTTPException:
+def fetch_file(
+    fastled_src_dir: Path, full_path: Path
+) -> SourceFileBytes | HTTPException:
     """Fetch the file from the server."""
     print(f"Fetching file: {full_path}")
     if not full_path.exists():
         raise HTTPException(status_code=404, detail="File not found.")
     if not full_path.is_file():
         raise HTTPException(status_code=400, detail="Not a file.")
-    if not full_path.is_relative_to(FASTLED_SRC) and not full_path.is_relative_to(
+    if not full_path.is_relative_to(fastled_src_dir) and not full_path.is_relative_to(
         "/emsdk"
     ):
         raise HTTPException(status_code=400, detail="Invalid file path.")
@@ -51,7 +51,7 @@ def fetch_file(full_path: Path) -> SourceFileBytes | HTTPException:
     return out
 
 
-def fetch_source_file(filepath: str) -> Response:
+def fetch_source_file(fastled_src_dir: Path, filepath: str) -> Response:
     """Get the source file from the server."""
     print(f"Endpoint accessed: /sourcefiles/{filepath}")
     if ".." in filepath:
@@ -59,8 +59,10 @@ def fetch_source_file(filepath: str) -> Response:
         return Response(
             content="Invalid file path.", media_type="text/plain", status_code=400
         )
-    full_path = Path(FASTLED_SRC / filepath)
-    result: SourceFileBytes | HTTPException = fetch_file(full_path=full_path)
+    full_path = Path(fastled_src_dir / filepath)
+    result: SourceFileBytes | HTTPException = fetch_file(
+        fastled_src_dir=fastled_src_dir, full_path=full_path
+    )
     if isinstance(result, HTTPException):
         assert isinstance(result, HTTPException)
         return Response(
@@ -75,14 +77,16 @@ def fetch_source_file(filepath: str) -> Response:
     return Response(content=content, media_type=media_type)
 
 
-def fetch_drawfsource(file_path: str) -> Response:
+def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
     """Serve static files."""
     # Check if path matches the pattern js/fastled/src/...
     if file_path.startswith("js/fastled/src/"):
         # Extract the path after "js/fastled/src/"
         relative_path = file_path[len("js/fastled/src/") :]
-        full_path = FASTLED_SRC / relative_path
-        result: SourceFileBytes | HTTPException = fetch_file(full_path=full_path)
+        full_path = fastled_src_dir / relative_path
+        result: SourceFileBytes | HTTPException = fetch_file(
+            fastled_src_dir=fastled_src_dir, full_path=full_path
+        )
 
         # return Response(content=content, media_type=media_type)
         if isinstance(result, HTTPException):
@@ -96,7 +100,9 @@ def fetch_drawfsource(file_path: str) -> Response:
     elif file_path.startswith("js/drawfsource/emsdk/"):
         relative_path = file_path[len("js/drawfsource/emsdk/") :]
         full_path = Path("/") / "emsdk" / relative_path
-        result: SourceFileBytes | HTTPException = fetch_file(full_path=full_path)
+        result: SourceFileBytes | HTTPException = fetch_file(
+            fastled_src_dir=fastled_src_dir, full_path=full_path
+        )
         if isinstance(result, HTTPException):
             return Response(
                 content=result.detail,  # type: ignore
@@ -110,3 +116,18 @@ def fetch_drawfsource(file_path: str) -> Response:
     return Response(
         content=f"File not found: {file_path}", media_type="text/plain", status_code=404
     )
+
+
+class SourceFileFetcher:
+    """A class to fetch source files."""
+
+    def __init__(self, fastled_src: Path):
+        self.fastled_src = fastled_src
+
+    def fetch_fastled(self, path: str) -> Response:
+        """Fetch the source file."""
+        return fetch_source_file(fastled_src_dir=self.fastled_src, filepath=path)
+
+    def fetch_drawfsource(self, path: str) -> Response:
+        """Fetch the source file."""
+        return _fetch_drawfsource(fastled_src_dir=self.fastled_src, file_path=path)

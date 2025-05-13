@@ -34,10 +34,7 @@ from fastled_wasm_server.server_fetch_example import (
     fetch_example,
 )
 from fastled_wasm_server.server_misc import start_memory_watchdog
-from fastled_wasm_server.server_serve_src_files import (
-    fetch_drawfsource,
-    fetch_source_file,
-)
+from fastled_wasm_server.server_serve_src_files import SourceFileFetcher
 from fastled_wasm_server.server_update_live_git_repo import (
     start_sync_live_git_to_target,
 )
@@ -102,6 +99,8 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # Initialize disk cache
 SKETCH_CACHE_MAX_ENTRIES = 50
 SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
+
+_SRC_FILE_FETCHER = SourceFileFetcher(fastled_src=FASTLED_SRC)
 
 
 class UploadSizeMiddleware(BaseHTTPMiddleware):
@@ -268,14 +267,15 @@ def project_init_example(
 @app.get("/sourcefiles/{filepath:path}")
 def source_file(filepath: str) -> Response:
     """Get the source file from the server."""
-    out: Response = fetch_source_file(filepath=filepath)
+    out: Response = _SRC_FILE_FETCHER.fetch_fastled(path=filepath)
     return out
 
 
 @app.get("/drawfsource/{file_path:path}")
 def drawfsource(file_path: str) -> Response:
     """Serve static files."""
-    out: Response = fetch_drawfsource(file_path=file_path)
+    # out: Response = fetch_drawfsource(file_path=file_path)
+    out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=file_path)
     return out
 
 
