@@ -22,7 +22,6 @@ from fastapi import (  # type: ignore
 from fastapi.responses import FileResponse  # type: ignore
 
 from fastled_wasm_server.code_sync import CodeSync
-from fastled_wasm_server.paths import COMPILER_ROOT
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
 )
@@ -59,6 +58,7 @@ def _cleanup_files(paths: list[Path]) -> None:
 
 
 def _compile_source(
+    compiler_root: Path,
     temp_src_dir: Path,
     file_path: Path,
     build_mode: str,
@@ -116,7 +116,7 @@ def _compile_source(
             cmd.append("--profile")
         proc = subprocess.Popen(
             cmd,
-            cwd=COMPILER_ROOT.as_posix(),
+            cwd=compiler_root.as_posix(),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -222,6 +222,7 @@ def _compile_source(
 
 
 def server_compile(
+    compiler_root: Path,
     file: UploadFile,
     build: str,
     profile: str,
@@ -339,6 +340,7 @@ def server_compile(
         for path in Path(temp_src_dir).rglob("*"):
             print(f"  {path}")
         out: HTTPException | CompileResult = _compile_source(
+            compiler_root=compiler_root,
             temp_src_dir=Path(temp_src_dir),
             file_path=file_path,
             build_mode=build,

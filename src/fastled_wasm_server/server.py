@@ -322,6 +322,7 @@ def compile_wasm(
     print(f"Endpoint accessed: /compile/wasm with file: {file.filename}")
 
     file_response = server_compile.server_compile(
+        compiler_root=FASTLED_SRC,
         file=file,
         build=build,
         profile=profile,
