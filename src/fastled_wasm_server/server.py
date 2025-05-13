@@ -5,8 +5,8 @@ import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from disklru import DiskLRUCache  # type: ignore
-from fastapi import (  # type: ignore
+from disklru import DiskLRUCache
+from fastapi import (
     BackgroundTasks,
     Body,
     FastAPI,
@@ -15,13 +15,13 @@ from fastapi import (  # type: ignore
     HTTPException,
     UploadFile,
 )
-from fastapi.responses import FileResponse, RedirectResponse, Response  # type: ignore
-from starlette.middleware.base import BaseHTTPMiddleware  # type: ignore
-from starlette.requests import Request  # type: ignore
+from fastapi.responses import FileResponse, RedirectResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from fastled_wasm_server import server_compile
 from fastled_wasm_server.code_sync import CodeSync
-from fastled_wasm_server.compile_lock import COMPILE_LOCK  # type: ignore
+from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
     FASTLED_SRC,
     LIVE_GIT_FASTLED_DIR,
@@ -116,8 +116,8 @@ class UploadSizeMiddleware(BaseHTTPMiddleware):
             )
             content_length = request.headers.get("content-length")
             if content_length:
-                content_length = int(content_length)  # type: ignore
-                if content_length > self.max_upload_size:  # type: ignore
+                content_length = int(content_length)
+                if content_length > self.max_upload_size:
                     return Response(
                         status_code=413,
                         content=f"File size exceeds {self.max_upload_size} byte limit, for large assets please put them in data/ directory to avoid uploading them to the server.",
@@ -131,8 +131,8 @@ _CODE_SYNC = CodeSync(
 )
 
 
-@asynccontextmanager  # type: ignore
-async def lifespan(app: FastAPI):  # type: ignore
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     print("Starting FastLED wasm compiler server...")
     try:
         print(f"Settings: {json.dumps(get_settings(), indent=2)}")
