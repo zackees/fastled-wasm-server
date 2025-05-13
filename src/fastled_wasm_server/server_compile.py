@@ -8,6 +8,7 @@ import traceback
 import warnings
 import zipfile
 import zlib
+from dataclasses import dataclass
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -42,15 +43,47 @@ COMPILE_FAILURES = 0
 COMPILE_SUCCESSES = 0
 
 
+# path=output_zip_path,
+# media_type="application/zip",
+# filename="fastled_output.zip",
+# background=background_tasks,
+
+
+@dataclass
+class CompileResult:
+    """A class to represent the result of a compile operation."""
+
+    output_zip_path: Path
+    filename: str
+    cleanup_list: list[Path]
+
+
+def _cleanup_files(paths: list[Path]) -> None:
+    # if output_zip_path.exists():
+    #     output_zip_path.unlink()
+    # if temp_zip_dir:
+    #     shutil.rmtree(temp_zip_dir, ignore_errors=True)
+    # if temp_src_dir:
+    #     shutil.rmtree(temp_src_dir, ignore_errors=True)
+    for path in paths:
+        if path.exists():
+            if path.is_file():
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError as e:
+                    warnings.warn(f"Error deleting file {path}: {e}")
+            elif path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+
+
 def _compile_source(
     temp_src_dir: Path,
     file_path: Path,
-    background_tasks: BackgroundTasks,
     build_mode: str,
     only_quick_builds: bool,
     profile: bool,
     hash_value: str | None = None,
-) -> FileResponse | HTTPException:
+) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
     epoch = time.time()
 
@@ -69,7 +102,6 @@ def _compile_source(
     global COMPILE_FAILURES
     global COMPILE_SUCCESSES
     COMPILE_COUNT += 1
-    temp_zip_dir = None
     try:
         # Find the first directory in temp_src_dir
         src_dir = next(Path(temp_src_dir).iterdir())
@@ -188,22 +220,27 @@ def _compile_source(
     zip_time = time.time() - start_zip
     print(f"Zip file created in {zip_time:.2f}s")
 
-    def cleanup_files(output_zip_path=output_zip_path, temp_zip_dir=temp_zip_dir):
-        if output_zip_path.exists():
-            output_zip_path.unlink()
-        if temp_zip_dir:
-            shutil.rmtree(temp_zip_dir, ignore_errors=True)
-        if temp_src_dir:
-            shutil.rmtree(temp_src_dir, ignore_errors=True)
+    # background_tasks.add_task(cleanup_files)
 
-    background_tasks.add_task(cleanup_files)
+    cleanup_files: list[Path] = [
+        output_zip_path,
+    ]
+    if temp_src_dir is not None:
+        cleanup_files.append(temp_src_dir)
+
     _print(f"\nReturning output zip: {output_zip_path}")
-    return FileResponse(
-        path=output_zip_path,
-        media_type="application/zip",
+    # return FileResponse(
+    #     path=output_zip_path,
+    #     media_type="application/zip",
+    #     filename="fastled_output.zip",
+    #     background=background_tasks,
+    # )
+    out: CompileResult = CompileResult(
+        output_zip_path=output_zip_path,
         filename="fastled_output.zip",
-        background=background_tasks,
+        cleanup_list=cleanup_files,
     )
+    return out
 
 
 def server_compile(
@@ -320,10 +357,9 @@ def server_compile(
         print("\nContents of source directory:")
         for path in Path(temp_src_dir).rglob("*"):
             print(f"  {path}")
-        out = _compile_source(
+        out: HTTPException | CompileResult = _compile_source(
             temp_src_dir=Path(temp_src_dir),
             file_path=file_path,
-            background_tasks=background_tasks,
             build_mode=build,
             only_quick_builds=only_quick_builds,
             profile=do_profile,
@@ -335,12 +371,24 @@ def server_compile(
             json_str = json.dumps(txt)
             warnings.warn(f"Error compiling source: {json_str}")
             raise out
+        compiled_out: CompileResult = out  # compiled_out is now a known type.
         # Cache the compiled zip file
-        out_path = Path(out.path)
+        out_path: Path = compiled_out.output_zip_path
         data = out_path.read_bytes()
         if hash_value is not None and use_sketch_cache:
             cache_put(sketch_cache=sketch_cache, hash=hash_value, data=data)
-        return out
+
+        def _cleanup_task(paths=compiled_out.cleanup_list) -> None:
+            _cleanup_files(paths)
+
+        background_tasks.add_task(_cleanup_task)
+        # Convert to a FileResponse
+        return FileResponse(
+            path=compiled_out.output_zip_path,
+            media_type="application/zip",
+            filename=compiled_out.filename,
+            background=background_tasks,
+        )
     except HTTPException as e:
         stacktrace = traceback.format_exc()
         print(f"HTTPException in upload process: {str(e)}\n{stacktrace}")
