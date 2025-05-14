@@ -100,7 +100,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 SKETCH_CACHE_MAX_ENTRIES = 50
 SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
-_SRC_FILE_FETCHER = SourceFileFetcher(fastled_src=Path("/does_not_exist"))
+_SRC_FILE_FETCHER = SourceFileFetcher(fastled_src=Path("/git/fastled/src/"))
 
 _CODE_SYNC = CodeSync(
     volume_mapped_src=VOLUME_MAPPED_SRC,
