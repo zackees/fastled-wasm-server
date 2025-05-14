@@ -77,15 +77,43 @@ def fetch_source_file(fastled_src_dir: Path, filepath: str) -> Response:
     return Response(content=content, media_type=media_type)
 
 
+_PATTERNS_FASTLED_SRC = [
+    "drawfsource/js/src/drawfsource/git/fastled/src/",
+    "drawfsource/js/drawfsource/headers/",
+]
+
+_PATTERNS_SKETCH = ["drawfsources/js/src/"]
+
+
 def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
     """Serve static files."""
     # Check if path matches the pattern js/fastled/src/...
-    if file_path.startswith("js/fastled/src/"):
-        # Extract the path after "js/fastled/src/"
-        relative_path = file_path[len("js/fastled/src/") :]
-        full_path = fastled_src_dir / relative_path
+
+    resolved_path: Path | None = None
+    is_fastled_src = False
+    is_sketch_src = False
+
+    for pattern in _PATTERNS_FASTLED_SRC:
+        if file_path.startswith(pattern):
+            # Extract the path after "js/fastled/src/"
+            relative_path = file_path[len(pattern) :]
+            resolved_path = fastled_src_dir / relative_path
+            is_fastled_src = True
+            break
+
+    if resolved_path is None:
+        for pattern in _PATTERNS_SKETCH:
+            if file_path.startswith(pattern):
+                # Extract the path after "drawfsources/js/src/"
+                relative_path = file_path[len(pattern) :]
+                resolved_path = fastled_src_dir / relative_path
+                is_fastled_src = True
+                break
+
+    if is_fastled_src:
+        assert resolved_path is not None
         result: SourceFileBytes | HTTPException = fetch_file(
-            fastled_src_dir=fastled_src_dir, full_path=full_path
+            fastled_src_dir=fastled_src_dir, full_path=Path(resolved_path)
         )
 
         # return Response(content=content, media_type=media_type)
@@ -97,11 +125,11 @@ def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
             )
         content, media_type = result.content, result.media_type
         return Response(content=content, media_type=media_type)
-    elif file_path.startswith("js/drawfsource/emsdk/"):
-        relative_path = file_path[len("js/drawfsource/emsdk/") :]
-        full_path = Path("/") / "emsdk" / relative_path
+
+    if is_sketch_src:
+        assert isinstance(resolved_path, str)
         result: SourceFileBytes | HTTPException = fetch_file(
-            fastled_src_dir=fastled_src_dir, full_path=full_path
+            fastled_src_dir=fastled_src_dir, full_path=Path(resolved_path)
         )
         if isinstance(result, HTTPException):
             return Response(
@@ -109,13 +137,8 @@ def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
                 media_type="text/plain",
                 status_code=result.status_code,  # type: ignore
             )
-        content, media_type = result.content, result.media_type
-        return Response(content=content, media_type=media_type)
-
-    # If file not found or path doesn't match expected format
-    return Response(
-        content=f"File not found: {file_path}", media_type="text/plain", status_code=404
-    )
+    # 404
+    return Response(content="File not found.", media_type="text/plain", status_code=404)
 
 
 class SourceFileFetcher:
