@@ -275,7 +275,7 @@ def project_init_example(
 def source_file(filepath: str) -> Response:
     """Get the source file from the server."""
     print(f"Endpoint accessed: /sourcefiles/{filepath}")
-    path = Path("/js/src") / filepath
+    path = Path("/git/fastled/src") / filepath
     if ".." in filepath:
         return Response(
             content="Invalid file path.", media_type="text/plain", status_code=400
@@ -293,13 +293,40 @@ def source_file(filepath: str) -> Response:
     return result
 
 
-@app.get("/drawfsource/{file_path:path}")
-def drawfsource(file_path: str) -> Response:
+@app.get("/fastledsource/{file_path:path}")
+def fastled_src(file_path: str) -> Response:
+    """Serve static files."""
+    result: Path | Exception = dwarf_path_to_file_path(
+        f"fastledsource/{file_path}",
+    )
+    if isinstance(result, Exception):
+        return Response(
+            content=result,
+            media_type="text/plain",
+            status_code=400,
+        )
+    if not result.exists():
+        return Response(
+            content="File not found.",
+            media_type="text/plain",
+            status_code=404,
+        )
+    out: FileResponse = FileResponse(
+        result,
+        media_type="text/plain",
+        filename=file_path,
+        headers={"Cache-Control": "no-cache"},
+    )
+    return out
+
+
+@app.get("/sketchsource/{file_path:path}")
+def sketch_src(file_path: str) -> Response:
     """Serve static files."""
     # out: Response = fetch_drawfsource(file_path=file_path)
     # out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=f"drawfsource/{file_path}")
     result: Path | Exception = dwarf_path_to_file_path(
-        f"drawfsource/{file_path}",
+        f"sketchsource/{file_path}",
     )
     if isinstance(result, Exception):
         return Response(
