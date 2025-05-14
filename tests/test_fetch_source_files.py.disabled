@@ -14,7 +14,7 @@ _ENABLED = False
 
 _DWARF_SRC_EXAMPLE = "http://localhost:{http_port}/drawfsource/js/src/drawfsource/git/fastled/src/FastLED.h"
 _DWARF_SRC_EXAMPLE2 = (
-    "http://localhost:{http_port}/drawfsource/js/drawfsource/headers/FastLED.cpp"
+    "http://localhost:{http_port}/drawfsource/js/drawfsource/headers/FastLED.h"
 )
 
 # FastLED.h examples.
