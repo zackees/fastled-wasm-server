@@ -94,19 +94,27 @@ def resolve_drawfsource(
     """Resolve the path for drawfsource."""
     # Check if path matches the pattern js/fastled/src/...
     for pattern in _PATTERNS_FASTLED_SRC:
+        print(f"Does {file_path} start with {pattern}?")
         if file_path.startswith(pattern):
+            print("Pattern matched.")
             # Extract the path after "js/fastled/src/"
             relative_path = file_path[len(pattern) :]
             resolved_path = fastled_src_dir / relative_path
+            print(f"Resolved path: {resolved_path}")
             return resolved_path
+        print("Pattern not matched.")
 
     if sketch_src_dir is not None:
         for pattern in _PATTERNS_SKETCH:
+            print(f"Does {file_path} start with {pattern}?")
             if file_path.startswith(pattern):
+                print("Pattern matched.")
                 # Extract the path after "drawfsources/js/src/"
                 relative_path = file_path[len(pattern) :]
                 resolved_path = sketch_src_dir / relative_path
+                print(f"Resolved path: {resolved_path}")
                 return resolved_path
+            print("Pattern not matched.")
 
     return None
 
@@ -114,6 +122,10 @@ def resolve_drawfsource(
 def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
     """Serve static files."""
     # Check if path matches the pattern js/fastled/src/...
+
+    print(f"Attempting to fetch source code for {file_path}")
+    print(f"FastLED source directory: {fastled_src_dir}")
+    print(f"Sketch source directory: {_SKETCH_SRC_DIR}")
 
     resolved_path: Path | None = resolve_drawfsource(
         fastled_src_dir=fastled_src_dir,
