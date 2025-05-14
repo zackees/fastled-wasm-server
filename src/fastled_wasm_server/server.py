@@ -290,7 +290,7 @@ def source_file(filepath: str) -> Response:
 def drawfsource(file_path: str) -> Response:
     """Serve static files."""
     # out: Response = fetch_drawfsource(file_path=file_path)
-    out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=file_path)
+    out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=f"drawfsource/{file_path}")
     return out
 
 

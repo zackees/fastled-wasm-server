@@ -85,7 +85,9 @@ _PATTERNS_FASTLED_SRC = [
     "drawfsource/js/drawfsource/headers/",
 ]
 
-_PATTERNS_SKETCH = ["drawfsource/js/src/"]
+_PATTERNS_SKETCH = [
+    "drawfsource/js/src/",
+]
 
 
 def resolve_drawfsource(

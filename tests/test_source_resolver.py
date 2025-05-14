@@ -10,7 +10,7 @@ from fastled_wasm_server.server_serve_src_files import SourceFileFetcher
 _PREFIX_FASTLED = "/fastled/src"
 _PREFIX_SKETCH = "/js/src"
 
-
+"drawfsource/js/drawfsource/headers/FastLED.h"
 _FASTLED_TEST_DATA: dict[str, str] = {
     "drawfsource/js/drawfsource/headers/FastLED.h": f"{_PREFIX_FASTLED}/FastLED.h",
     "drawfsource/js/src/drawfsource/git/fastled/src/FastLED.h": f"{_PREFIX_FASTLED}/FastLED.h",
@@ -18,6 +18,7 @@ _FASTLED_TEST_DATA: dict[str, str] = {
 
 _SKETCH_TEST_DATA: dict[str, str] = {
     "drawfsource/js/src/XYPath.ino.cpp": f"{_PREFIX_SKETCH}/XYPath.ino.cpp",
+    "drawfsource/js/src/direct.h": f"{_PREFIX_SKETCH}/direct.h",
 }
 
 
