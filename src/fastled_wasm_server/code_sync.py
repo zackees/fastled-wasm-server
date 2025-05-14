@@ -10,15 +10,20 @@ from fastled_wasm_server.compile_lock import COMPILE_LOCK
 TIME_START = time.time()
 
 _HAS_RSYNC = shutil.which("rsync") is not None
+_ENABLED = False
 
 
 def _sync_src_to_target(
     src: Path, dst: Path, callback: Callable[[], None] | None = None
 ) -> bool:
     """Sync the volume mapped source directory to the FastLED source directory."""
+    if not _ENABLED:
+        warnings.warn("Code Sync is specifically disabled")
+        return False
     if not _HAS_RSYNC:
         warnings.warn("rsync not found, skipping sync")
         return False
+
     suppress_print = (
         TIME_START + 30 > time.time()
     )  # Don't print during initial volume map.
@@ -89,6 +94,10 @@ class CodeSync:
     ) -> bool:
         """Sync the volume mapped source directory to the FastLED source directory."""
 
+        if not _ENABLED:
+            warnings.warn("Code Sync is specifically disabled")
+            return False
+
         if volume_mapped_src is None or rsync_dest is None:
             assert (
                 volume_mapped_src is None and rsync_dest is None
@@ -104,6 +113,9 @@ class CodeSync:
         callback: Callable[[], None] | None = None,
     ) -> bool:
         """Sync the volume mapped source directory to the FastLED source directory."""
+        if not _ENABLED:
+            warnings.warn("Code Sync is specifically disabled")
+            return False
         if not self.volume_mapped_src.exists():
             # Volume is not mapped in so we don't rsync it.
             print("Skipping rsync, as fastled src volume not mapped")

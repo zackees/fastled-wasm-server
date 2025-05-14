@@ -21,9 +21,8 @@ from starlette.requests import Request
 
 from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
-from fastled_wasm_server.paths import (  # The folder where the actual source code is located.
+from fastled_wasm_server.paths import (  # The folder where the actual source code is located.; FASTLED_SRC,
     COMPILER_ROOT,
-    FASTLED_SRC,
     LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
     SKETCH_CACHE_FILE,
@@ -101,11 +100,11 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 SKETCH_CACHE_MAX_ENTRIES = 50
 SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
-_SRC_FILE_FETCHER = SourceFileFetcher(fastled_src=FASTLED_SRC)
+_SRC_FILE_FETCHER = SourceFileFetcher(fastled_src=Path("/does_not_exist"))
 
 _CODE_SYNC = CodeSync(
     volume_mapped_src=VOLUME_MAPPED_SRC,
-    rsync_dest=FASTLED_SRC,
+    rsync_dest=Path("/does_not_exist"),
 )
 
 _COMPILER = ServerWasmCompiler(
@@ -158,7 +157,7 @@ async def lifespan(app: FastAPI):
             compiler_lock=COMPILE_LOCK,
             code_sync=_CODE_SYNC,
             sketch_cache=SKETCH_CACHE,
-            fastled_src=FASTLED_SRC,
+            fastled_src=Path("/does_not_exist"),
             update_interval=_LIVE_GIT_UPDATES_INTERVAL,
         )
     else:
