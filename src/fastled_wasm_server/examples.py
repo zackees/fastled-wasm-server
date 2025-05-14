@@ -1,0 +1,18 @@
+EXAMPLES: list[str] = [
+    "Chromancer",
+    "LuminescentGrand",
+    "wasm",
+    "FxAnimartrix",
+    "FxCylon",
+    "FxDemoReel100",
+    "FxFire2012",
+    "FxEngine",
+    "FxGfx2Video",
+    "FxNoisePlusPalette",
+    "FxNoiseRing",
+    "FxSdCard",
+    "FxWater",
+    "Wave2d",
+    "FxWave2d",
+    "FireCylinder",
+]

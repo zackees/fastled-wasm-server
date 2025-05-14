@@ -19,11 +19,10 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
 )
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
 from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
+from fastled_wasm_server.examples import EXAMPLES
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.; FASTLED_SRC,
     COMPILER_ROOT,
     LIVE_GIT_FASTLED_DIR,
@@ -41,25 +40,7 @@ from fastled_wasm_server.server_update_live_git_repo import (
     start_sync_live_git_to_target,
 )
 from fastled_wasm_server.types import CompilerStats
-
-_EXAMPLES: list[str] = [
-    "Chromancer",
-    "LuminescentGrand",
-    "wasm",
-    "FxAnimartrix",
-    "FxCylon",
-    "FxDemoReel100",
-    "FxFire2012",
-    "FxEngine",
-    "FxGfx2Video",
-    "FxNoisePlusPalette",
-    "FxNoiseRing",
-    "FxSdCard",
-    "FxWater",
-    "Wave2d",
-    "FxWave2d",
-    "FireCylinder",
-]
+from fastled_wasm_server.upload_size_middleware import UploadSizeMiddleware
 
 _COMPILER_STATS = CompilerStats()
 
@@ -114,27 +95,6 @@ _COMPILER = ServerWasmCompiler(
     only_quick_builds=_ONLY_QUICK_BUILDS,
     compiler_lock=COMPILE_LOCK,
 )
-
-
-class UploadSizeMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, max_upload_size: int):
-        super().__init__(app)
-        self.max_upload_size = max_upload_size
-
-    async def dispatch(self, request: Request, call_next):
-        if request.method == "POST" and "/compile/wasm" in request.url.path:
-            print(
-                f"Upload request with content-length: {request.headers.get('content-length')}"
-            )
-            content_length = request.headers.get("content-length")
-            if content_length:
-                content_length = int(content_length)
-                if content_length > self.max_upload_size:
-                    return Response(
-                        status_code=413,
-                        content=f"File size exceeds {self.max_upload_size} byte limit, for large assets please put them in data/ directory to avoid uploading them to the server.",
-                    )
-        return await call_next(request)
 
 
 @asynccontextmanager
@@ -271,79 +231,28 @@ def project_init_example(
     return out
 
 
-@app.get("/sourcefiles/{filepath:path}")
-def source_file(filepath: str) -> Response:
-    """Get the source file from the server."""
-    print(f"Endpoint accessed: /sourcefiles/{filepath}")
-    path = Path("/git/fastled/src") / filepath
-    if ".." in filepath:
-        return Response(
-            content="Invalid file path.", media_type="text/plain", status_code=400
-        )
-    if not path.exists():
-        return Response(
-            content="File not found.", media_type="text/plain", status_code=404
-        )
-    result: FileResponse = FileResponse(
-        path,
-        media_type="text/plain",
-        filename=filepath,
-        headers={"Cache-Control": "no-cache"},
+@app.get("/dwarfsource/{file_path:path}")
+def dwarfsource(suffix_path: str) -> Response:
+    """File servering for step through debugging."""
+    path_or_err: Path | Exception = dwarf_path_to_file_path(
+        f"{suffix_path}",
     )
-    return result
-
-
-@app.get("/fastledsource/{file_path:path}")
-def fastled_src(file_path: str) -> Response:
-    """Serve static files."""
-    result: Path | Exception = dwarf_path_to_file_path(
-        f"fastledsource/{file_path}",
-    )
-    if isinstance(result, Exception):
+    if isinstance(path_or_err, Exception):
         return Response(
-            content=result,
+            content=path_or_err,
             media_type="text/plain",
             status_code=400,
         )
-    if not result.exists():
+    if not path_or_err.exists():
         return Response(
             content="File not found.",
             media_type="text/plain",
             status_code=404,
         )
     out: FileResponse = FileResponse(
-        result,
+        path_or_err,
         media_type="text/plain",
-        filename=file_path,
-        headers={"Cache-Control": "no-cache"},
-    )
-    return out
-
-
-@app.get("/sketchsource/{file_path:path}")
-def sketch_src(file_path: str) -> Response:
-    """Serve static files."""
-    # out: Response = fetch_drawfsource(file_path=file_path)
-    # out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=f"drawfsource/{file_path}")
-    result: Path | Exception = dwarf_path_to_file_path(
-        f"sketchsource/{file_path}",
-    )
-    if isinstance(result, Exception):
-        return Response(
-            content=result,
-            media_type="text/plain",
-            status_code=400,
-        )
-    if not result.exists():
-        return Response(
-            content="File not found.",
-            media_type="text/plain",
-            status_code=404,
-        )
-    out: FileResponse = FileResponse(
-        result,
-        media_type="text/plain",
-        filename=file_path,
+        filename=path_or_err.name,
         headers={"Cache-Control": "no-cache"},
     )
     return out
@@ -364,7 +273,7 @@ def info_examples() -> dict:
         build_timestamp = "unknown"
     fastled_version = os.environ.get("FASTLED_VERSION", "unknown")
     out = {
-        "examples": _EXAMPLES,
+        "examples": EXAMPLES,
         "compile_count": _COMPILER_STATS.compile_count,
         "compile_failures": _COMPILER_STATS.compile_failures,
         "compile_successes": _COMPILER_STATS.compile_successes,
