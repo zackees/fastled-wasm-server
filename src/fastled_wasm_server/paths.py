@@ -23,7 +23,7 @@ LIVE_GIT_FASTLED_DIR = path_or_default("/git/fastled", "ENV_GIT_FASTLED_DIR")
 SKETCH_SRC = COMPILER_ROOT / "src"
 SKETCH_CACHE_FILE = OUTPUT_DIR / "compile_cache.db"
 COMPIER_DIR = COMPILER_ROOT / "compiler"
-FASTLED_COMPILER_DIR = COMPILER_ROOT / "fastled/src/platforms/wasm/compiler"
+# FASTLED_COMPILER_DIR = COMPILER_ROOT / "fastled/src/platforms/wasm/compiler"
 PIO_BUILD_DIR = COMPILER_ROOT / ".pio/build"
 
 _CHECK_PATHS = [

@@ -23,11 +23,15 @@ from fastapi.responses import FileResponse  # type: ignore
 from fastled_wasm_compiler.run import Args
 
 from fastled_wasm_server.code_sync import CodeSync
-from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
+
+# from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
 )
 from fastled_wasm_server.types import CompilerStats
+
+# TODO Fix.
+FASTLED_COMPILER_DIR = Path("/git/fastled/src/platforms/wasm/compiler")
 
 
 def try_get_cached_zip(sketch_cache: DiskLRUCache, hash: str) -> bytes | None:
