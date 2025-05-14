@@ -106,8 +106,8 @@ SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
 
 _SRC_FILE_FETCHER = SourceFileFetcher(
-    fastled_src=_SKETCH_SRC_DIR,
-    sketch_src=_FASTLED_SRC_DIR,
+    fastled_src=_FASTLED_SRC_DIR,
+    sketch_src=_SKETCH_SRC_DIR,
 )
 
 _CODE_SYNC = CodeSync(
