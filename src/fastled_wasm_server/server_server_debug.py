@@ -1,11 +1,10 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import HTTPException
 from fastapi.responses import Response
-
-# TODO: fix this
-_SKETCH_SRC_DIR = Path("/js/src")
+from fastled_wasm_compiler.dwarf_path_to_file_path import dwarf_path_to_file_path
 
 
 @dataclass
@@ -80,64 +79,25 @@ def fetch_source_file(fastled_src_dir: Path, filepath: str) -> Response:
     return Response(content=content, media_type=media_type)
 
 
-_PATTERNS_FASTLED_SRC = [
-    "drawfsource/js/src/drawfsource/git/fastled/src/",
-    "drawfsource/js/drawfsource/headers/",
-]
-
-_PATTERNS_SKETCH = [
-    "drawfsource/js/src/",
-]
-
-
-def resolve_drawfsource(
-    fastled_src_dir: Path, sketch_src_dir: Path | None, file_path: str
-) -> Path | None:
-    """Resolve the path for drawfsource."""
-    # Check if path matches the pattern js/fastled/src/...
-    for pattern in _PATTERNS_FASTLED_SRC:
-        print(f"Does {file_path} start with {pattern}?")
-        if file_path.startswith(pattern):
-            print("Pattern matched.")
-            # Extract the path after "js/fastled/src/"
-            relative_path = file_path[len(pattern) :]
-            resolved_path = fastled_src_dir / relative_path
-            print(f"Resolved path: {resolved_path}")
-            return resolved_path
-        print("Pattern not matched.")
-
-    if sketch_src_dir is not None:
-        for pattern in _PATTERNS_SKETCH:
-            print(f"Does {file_path} start with {pattern}?")
-            if file_path.startswith(pattern):
-                print("Pattern matched.")
-                # Extract the path after "drawfsources/js/src/"
-                relative_path = file_path[len(pattern) :]
-                resolved_path = sketch_src_dir / relative_path
-                print(f"Resolved path: {resolved_path}")
-                return resolved_path
-            print("Pattern not matched.")
-
-    return None
-
-
-def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
+def fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
     """Serve static files."""
     # Check if path matches the pattern js/fastled/src/...
-
-    print(f"Attempting to fetch source code for {file_path}")
-    print(f"FastLED source directory: {fastled_src_dir}")
-    print(f"Sketch source directory: {_SKETCH_SRC_DIR}")
-
-    resolved_path: Path | None = resolve_drawfsource(
-        fastled_src_dir=fastled_src_dir,
-        sketch_src_dir=_SKETCH_SRC_DIR,
-        file_path=file_path,
+    resolved_path: Path | Exception = dwarf_path_to_file_path(
+        file_path,
     )
-
-    if resolved_path is None:
+    if isinstance(resolved_path, Exception):
         return Response(
-            content="Invalid file path.", media_type="text/plain", status_code=400
+            content=resolved_path,
+            media_type="text/plain",
+            status_code=400,
+        )
+
+    # Check if the resolved path is valid
+    if not os.path.exists(resolved_path):
+        return Response(
+            content="File not found.",
+            media_type="text/plain",
+            status_code=404,
         )
 
     result: SourceFileBytes | HTTPException = fetch_file(
@@ -151,27 +111,3 @@ def _fetch_drawfsource(fastled_src_dir: Path, file_path: str) -> Response:
         )
     content, media_type = result.content, result.media_type
     return Response(content=content, media_type=media_type)
-
-
-class SourceFileFetcher:
-    """A class to fetch source files."""
-
-    def __init__(self, fastled_src: Path, sketch_src: Path | None):
-        self.fastled_src = fastled_src
-        self.sketch_src = sketch_src
-
-    def fetch_fastled(self, path: str) -> Response:
-        """Fetch the source file."""
-        return fetch_source_file(fastled_src_dir=self.fastled_src, filepath=path)
-
-    def fetch_drawfsource(self, path: str) -> Response:
-        """Fetch the source file."""
-        return _fetch_drawfsource(fastled_src_dir=self.fastled_src, file_path=path)
-
-    def resolve_drawfsource(self, path: str) -> Path | None:
-        out: Path | None = resolve_drawfsource(
-            fastled_src_dir=self.fastled_src,
-            sketch_src_dir=self.sketch_src,
-            file_path=path,
-        )
-        return out

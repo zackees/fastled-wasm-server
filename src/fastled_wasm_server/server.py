@@ -16,6 +16,9 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastled_wasm_compiler.dwarf_path_to_file_path import (
+    dwarf_path_to_file_path,
+)
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -34,15 +37,10 @@ from fastled_wasm_server.server_fetch_example import (
     fetch_example,
 )
 from fastled_wasm_server.server_misc import start_memory_watchdog
-from fastled_wasm_server.server_serve_src_files import SourceFileFetcher
 from fastled_wasm_server.server_update_live_git_repo import (
     start_sync_live_git_to_target,
 )
 from fastled_wasm_server.types import CompilerStats
-
-# TODO: improve this and make it dynamic.
-_SKETCH_SRC_DIR = Path("/js/src")
-_FASTLED_SRC_DIR = Path("/git/fastled/src")
 
 _EXAMPLES: list[str] = [
     "Chromancer",
@@ -103,12 +101,6 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # Initialize disk cache
 SKETCH_CACHE_MAX_ENTRIES = 50
 SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
-
-
-_SRC_FILE_FETCHER = SourceFileFetcher(
-    fastled_src=_FASTLED_SRC_DIR,
-    sketch_src=_SKETCH_SRC_DIR,
-)
 
 _CODE_SYNC = CodeSync(
     volume_mapped_src=VOLUME_MAPPED_SRC,
@@ -282,15 +274,51 @@ def project_init_example(
 @app.get("/sourcefiles/{filepath:path}")
 def source_file(filepath: str) -> Response:
     """Get the source file from the server."""
-    out: Response = _SRC_FILE_FETCHER.fetch_fastled(path=filepath)
-    return out
+    print(f"Endpoint accessed: /sourcefiles/{filepath}")
+    path = Path("/js/src") / filepath
+    if ".." in filepath:
+        return Response(
+            content="Invalid file path.", media_type="text/plain", status_code=400
+        )
+    if not path.exists():
+        return Response(
+            content="File not found.", media_type="text/plain", status_code=404
+        )
+    result: FileResponse = FileResponse(
+        path,
+        media_type="text/plain",
+        filename=filepath,
+        headers={"Cache-Control": "no-cache"},
+    )
+    return result
 
 
 @app.get("/drawfsource/{file_path:path}")
 def drawfsource(file_path: str) -> Response:
     """Serve static files."""
     # out: Response = fetch_drawfsource(file_path=file_path)
-    out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=f"drawfsource/{file_path}")
+    # out: Response = _SRC_FILE_FETCHER.fetch_drawfsource(path=f"drawfsource/{file_path}")
+    result: Path | Exception = dwarf_path_to_file_path(
+        f"drawfsource/{file_path}",
+    )
+    if isinstance(result, Exception):
+        return Response(
+            content=result,
+            media_type="text/plain",
+            status_code=400,
+        )
+    if not result.exists():
+        return Response(
+            content="File not found.",
+            media_type="text/plain",
+            status_code=404,
+        )
+    out: FileResponse = FileResponse(
+        result,
+        media_type="text/plain",
+        filename=file_path,
+        headers={"Cache-Control": "no-cache"},
+    )
     return out
 
 
