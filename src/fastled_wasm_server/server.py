@@ -231,7 +231,7 @@ def project_init_example(
     return out
 
 
-@app.get("/dwarfsource/{file_path:path}")
+@app.get("/dwarfsource/{suffix_path:path}")
 def dwarfsource(suffix_path: str) -> Response:
     """File servering for step through debugging."""
     path_or_err: Path | Exception = dwarf_path_to_file_path(
