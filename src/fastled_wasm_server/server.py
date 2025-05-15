@@ -298,7 +298,9 @@ def compile_wasm(
     if not _TEST and authorization != _AUTH_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    print(f"Endpoint accessed: /compile/wasm with file: {file.filename}")
+    print(
+        f"Endpoint accessed: /compile/wasm with file: {file.filename}, and build: {build}, profile: {profile}"
+    )
     file_response = _COMPILER.compile(
         file=file,
         build=build,
