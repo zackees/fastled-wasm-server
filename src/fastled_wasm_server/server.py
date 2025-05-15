@@ -239,7 +239,7 @@ def dwarfsource(suffix_path: str) -> Response:
     )
     if isinstance(path_or_err, Exception):
         return Response(
-            content=path_or_err,
+            content=str(path_or_err),
             media_type="text/plain",
             status_code=400,
         )
