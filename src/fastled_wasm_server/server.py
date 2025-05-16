@@ -272,6 +272,11 @@ def info_examples() -> dict:
         warnings.warn(f"Error reading build timestamp: {e}")
         build_timestamp = "unknown"
     fastled_version = os.environ.get("FASTLED_VERSION", "unknown")
+    available_builds: list[str] = [
+        "quick",
+    ]
+    if not _ONLY_QUICK_BUILDS:
+        available_builds += ["release", "debug"]
     out = {
         "examples": EXAMPLES,
         "compile_count": _COMPILER_STATS.compile_count,
@@ -280,6 +285,7 @@ def info_examples() -> dict:
         "uptime": uptime_fmtd,
         "build_timestamp": build_timestamp,
         "fastled_version": fastled_version,
+        "available_builds": available_builds,
     }
     return out
 
