@@ -20,7 +20,7 @@ dependencies = [
     "wormhole-tx",
 ]
 # Change this with the version number bump.
-version = "1.0.32"
+version = "1.0.33"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -50,4 +50,4 @@ ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
 
 [project.scripts]
-fastled-wasm-compile = "fastled_wasm_server.cli_compile:main"
+fastled-wasm-server = "fastled_wasm_server.cli_compile:main"
