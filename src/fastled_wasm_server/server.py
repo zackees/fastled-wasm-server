@@ -65,6 +65,8 @@ _ONLY_QUICK_BUILDS = os.environ.get("ONLY_QUICK_BUILDS", "false").lower() in [
     "1",
 ]
 
+_ALLOW_CODE_SYNC = False
+
 _FASTLED_SRC = Path("/git/fastled/src")
 
 _LIVE_GIT_UPDATES_ENABLED = False
@@ -110,7 +112,10 @@ async def lifespan(app: FastAPI):
         print(f"Starting memory watchdog (limit: {_MEMORY_LIMIT_MB}MB)")
         start_memory_watchdog(_MEMORY_LIMIT_MB)
 
-    _CODE_SYNC.sync_source_directory_if_volume_is_mapped()
+    if _ALLOW_CODE_SYNC:
+        _CODE_SYNC.sync_source_directory_if_volume_is_mapped()
+    else:
+        print("Code sync disabled")
 
     if _LIVE_GIT_UPDATES_ENABLED:
         start_sync_live_git_to_target(
