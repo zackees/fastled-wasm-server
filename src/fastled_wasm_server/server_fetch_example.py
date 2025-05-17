@@ -39,7 +39,7 @@ def zip_example_to_file(example: str, dst_zip_file: Path) -> None:
 def fetch_example(
     background_tasks: BackgroundTasks, example: str | None = None
 ) -> FileResponse:
-    """Archive /js/fastled/examples/wasm into a zip file and return it."""
+    """Archive /git/fastled/examples/wasm into a zip file and return it."""
 
     # tmp_zip_file = NamedTemporaryFile(delete=False)
     # tmp_zip_path = Path(tmp_zip_file.name)

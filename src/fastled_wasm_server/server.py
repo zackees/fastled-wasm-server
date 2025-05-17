@@ -219,7 +219,7 @@ async def compiler_in_use() -> dict:
 
 @app.get("/project/init")
 def project_init(background_tasks: BackgroundTasks) -> FileResponse:
-    """Archive /js/fastled/examples/wasm into a zip file and return it."""
+    """Archive /git/fastled/examples/wasm into a zip file and return it."""
     print("Endpoint accessed: /project/init")
     response: FileResponse = fetch_example(background_tasks=background_tasks)
     return response
@@ -229,7 +229,7 @@ def project_init(background_tasks: BackgroundTasks) -> FileResponse:
 def project_init_example(
     background_tasks: BackgroundTasks, example: str = Body(...)
 ) -> FileResponse:
-    """Archive /js/fastled/examples/{example} into a zip file and return it."""
+    """Archive /git/fastled/examples/{example} into a zip file and return it."""
     print(f"Endpoint accessed: /project/init/example with example: {example}")
     out: FileResponse = fetch_example(
         background_tasks=background_tasks, example=example
