@@ -65,6 +65,7 @@ _ONLY_QUICK_BUILDS = os.environ.get("ONLY_QUICK_BUILDS", "false").lower() in [
     "1",
 ]
 
+_FASTLED_SRC = Path("/git/fastled/src")
 
 _LIVE_GIT_UPDATES_ENABLED = False
 
@@ -85,7 +86,7 @@ SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
 _CODE_SYNC = CodeSync(
     volume_mapped_src=VOLUME_MAPPED_SRC,
-    rsync_dest=Path("/does_not_exist"),
+    rsync_dest=_FASTLED_SRC,
 )
 
 _COMPILER = ServerWasmCompiler(
@@ -117,7 +118,7 @@ async def lifespan(app: FastAPI):
             compiler_lock=COMPILE_LOCK,
             code_sync=_CODE_SYNC,
             sketch_cache=SKETCH_CACHE,
-            fastled_src=Path("/does_not_exist"),
+            fastled_src=_FASTLED_SRC,
             update_interval=_LIVE_GIT_UPDATES_INTERVAL,
         )
     else:
