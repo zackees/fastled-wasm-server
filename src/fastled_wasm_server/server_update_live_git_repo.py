@@ -5,8 +5,7 @@ from pathlib import Path
 from threading import Timer
 
 from disklru import DiskLRUCache  # type: ignore
-
-from fastled_wasm_server.code_sync import CodeSync
+from fastled_wasm_compiler.code_sync import CodeSync
 
 
 def update_live_git_repo(live_git_fastled_root_dir: Path) -> None:

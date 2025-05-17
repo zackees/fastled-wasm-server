@@ -16,11 +16,11 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastled_wasm_compiler.code_sync import CodeSync
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
 )
 
-from fastled_wasm_server.code_sync import CodeSync
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.examples import EXAMPLES
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.; FASTLED_SRC,

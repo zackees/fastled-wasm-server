@@ -20,9 +20,8 @@ from fastapi import (  # type: ignore
     UploadFile,
 )
 from fastapi.responses import FileResponse  # type: ignore
+from fastled_wasm_compiler.code_sync import CodeSync
 from fastled_wasm_compiler.run import Args
-
-from fastled_wasm_server.code_sync import CodeSync
 
 # from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
 from fastled_wasm_server.sketch_hasher import (
