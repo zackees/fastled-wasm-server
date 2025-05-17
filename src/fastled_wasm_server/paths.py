@@ -8,7 +8,7 @@ def path_or_default(default: str, env_var: str) -> Path:
     return Path(os.environ.get(env_var, default))
 
 
-FASTLED_EXAMPLES_DIR = Path("/examples")
+FASTLED_EXAMPLES_DIR = Path("/git/fastled/examples")
 
 UPLOAD_DIR = path_or_default("/uploads", "ENV_UPLOAD_DIR")
 TEMP_DIR = path_or_default("/tmp", "ENV_TEMP_DIR")
