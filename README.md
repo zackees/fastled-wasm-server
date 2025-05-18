@@ -8,6 +8,7 @@ This will only work in the `niteris/fastled-wasm` container.
 
 At the root execute `./install`
 
+
 #### Lint
 
 `./lint`
