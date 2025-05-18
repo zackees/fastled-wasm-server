@@ -305,10 +305,12 @@ def compile_wasm(
     )
 
     if VOLUME_MAPPED_SRC.exists():
+        print(f"VOLUME_MAPPED_SRC exists: {VOLUME_MAPPED_SRC}")
         err = _COMPILER_NEW.update_src(VOLUME_MAPPED_SRC)
         if err:
-            warnings.warn(f"Error updating src: {err}")
-            pass
+            warnings.warn(f"Error updating src from {VOLUME_MAPPED_SRC}: {err}")
+    else:
+        print(f"VOLUME_MAPPED_SRC does not exist: {VOLUME_MAPPED_SRC}")
 
     file_response = _COMPILER.compile(
         file=file,
