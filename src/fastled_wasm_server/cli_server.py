@@ -15,14 +15,29 @@ HERE = Path(__file__).parent
 
 @dataclass
 class Args:
+    cwd: Path
     disable_auto_clean: bool
     allow_shutdown: bool
     no_auto_update: bool
     no_sketch_cache: bool
 
+    def __post_init__(self):
+        if not isinstance(self.cwd, Path):
+            raise TypeError("CWD must be a Path object.")
+        if not self.cwd.exists():
+            raise ValueError(f"CWD path does not exist: {self.cwd}")
+        if not self.cwd.is_dir():
+            raise ValueError(f"CWD path is not a directory: {self.cwd}")
+
     @staticmethod
     def parse_args() -> "Args":
         parser = argparse.ArgumentParser(description="Compile INO file to WASM.")
+        parser.add_argument(
+            "--cwd",
+            type=Path,
+            default=Path(os.getcwd()),
+            help="Path to the current working directory.",
+        )
         parser.add_argument(
             "--disable-auto-clean",
             action="store_true",
@@ -45,6 +60,7 @@ class Args:
         )
         args = parser.parse_args()
         return Args(
+            cwd=args.cwd,
             disable_auto_clean=args.disable_auto_clean,
             allow_shutdown=args.allow_shutdown,
             no_auto_update=args.no_auto_update,
@@ -72,7 +88,10 @@ def run_server(args: Args) -> int:
         "--port",
         f"{_PORT}",
     ]
-    cp: subprocess.CompletedProcess = subprocess.run(cmd_list, cwd=str(HERE), env=env)
+    cwd = args.cwd
+    cp: subprocess.CompletedProcess = subprocess.run(
+        cmd_list, cwd=cwd.as_posix(), env=env
+    )
     return cp.returncode
 
 
