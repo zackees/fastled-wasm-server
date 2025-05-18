@@ -25,7 +25,6 @@ from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.examples import EXAMPLES
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.; FASTLED_SRC,
     COMPILER_ROOT,
-    LIVE_GIT_FASTLED_DIR,
     OUTPUT_DIR,
     SKETCH_CACHE_FILE,
     UPLOAD_DIR,
@@ -36,9 +35,6 @@ from fastled_wasm_server.server_fetch_example import (
     fetch_example,
 )
 from fastled_wasm_server.server_misc import start_memory_watchdog
-from fastled_wasm_server.server_update_live_git_repo import (
-    start_sync_live_git_to_target,
-)
 from fastled_wasm_server.types import CompilerStats
 from fastled_wasm_server.upload_size_middleware import UploadSizeMiddleware
 
@@ -67,7 +63,7 @@ _ONLY_QUICK_BUILDS = os.environ.get("ONLY_QUICK_BUILDS", "false").lower() in [
 
 _ALLOW_CODE_SYNC = False
 
-_FASTLED_SRC = Path("/git/fastled/src")
+# _FASTLED_SRC = Path("/git/fastled/src")
 
 _LIVE_GIT_UPDATES_ENABLED = False
 
@@ -87,8 +83,8 @@ SKETCH_CACHE_MAX_ENTRIES = 50
 SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
 _CODE_SYNC = CodeSync(
-    volume_mapped_src=VOLUME_MAPPED_SRC,
-    rsync_dest=_FASTLED_SRC,
+    # volume_mapped_src=VOLUME_MAPPED_SRC,
+    # rsync_dest=_FASTLED_SRC,
 )
 
 _COMPILER = ServerWasmCompiler(
@@ -113,21 +109,11 @@ async def lifespan(app: FastAPI):
         start_memory_watchdog(_MEMORY_LIMIT_MB)
 
     if _ALLOW_CODE_SYNC:
-        _CODE_SYNC.sync_source_directory_if_volume_is_mapped()
+        if VOLUME_MAPPED_SRC.exists():
+            _CODE_SYNC.update_and_compile_core(VOLUME_MAPPED_SRC)
     else:
         print("Code sync disabled")
 
-    if _LIVE_GIT_UPDATES_ENABLED:
-        start_sync_live_git_to_target(
-            live_git_fastled_root_dir=LIVE_GIT_FASTLED_DIR,
-            compiler_lock=COMPILE_LOCK,
-            code_sync=_CODE_SYNC,
-            sketch_cache=SKETCH_CACHE,
-            fastled_src=_FASTLED_SRC,
-            update_interval=_LIVE_GIT_UPDATES_INTERVAL,
-        )
-    else:
-        print("Auto updates disabled")
     yield  # end startup
     return  # end shutdown
 

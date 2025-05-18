@@ -23,6 +23,8 @@ from fastapi.responses import FileResponse  # type: ignore
 from fastled_wasm_compiler.code_sync import CodeSync
 from fastled_wasm_compiler.run import Args
 
+from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
+
 # from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
 from fastled_wasm_server.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
@@ -315,7 +317,9 @@ def server_compile(
             print("Source files changed, clearing cache")
             sketch_cache.clear()
 
-        code_sync.sync_source_directory_if_volume_is_mapped(callback=on_files_changed)
+        # code_sync.sync_source_directory_if_volume_is_mapped(callback=on_files_changed)
+        if VOLUME_MAPPED_SRC.exists():
+            code_sync.update_and_compile_core(VOLUME_MAPPED_SRC)
 
         entry: bytes | None = None
         if hash_value is not None:
