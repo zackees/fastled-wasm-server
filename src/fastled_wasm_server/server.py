@@ -16,6 +16,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.code_sync import CodeSync
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
@@ -39,6 +40,9 @@ from fastled_wasm_server.types import CompilerStats
 from fastled_wasm_server.upload_size_middleware import UploadSizeMiddleware
 
 _COMPILER_STATS = CompilerStats()
+
+
+_COMPILER_NEW = Compiler()
 
 _TEST = False
 _UPLOAD_LIMIT = 10 * 1024 * 1024
@@ -299,6 +303,10 @@ def compile_wasm(
     print(
         f"Endpoint accessed: /compile/wasm with file: {file.filename}, and build: {build}, profile: {profile}"
     )
+
+    if VOLUME_MAPPED_SRC.exists():
+        _COMPILER_NEW.update_src(VOLUME_MAPPED_SRC)
+
     file_response = _COMPILER.compile(
         file=file,
         build=build,
