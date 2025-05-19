@@ -17,7 +17,6 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastled_wasm_compiler import Compiler
-from fastled_wasm_compiler.code_sync import CodeSync
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
 )
@@ -86,15 +85,15 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 SKETCH_CACHE_MAX_ENTRIES = 50
 SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
-_CODE_SYNC = CodeSync(
-    # volume_mapped_src=VOLUME_MAPPED_SRC,
-    # rsync_dest=_FASTLED_SRC,
+# New compiler type that will replace the legacy ones.
+_NEW_COMPILER = Compiler(
+    volume_mapped_src=VOLUME_MAPPED_SRC,
 )
 
 _COMPILER = ServerWasmCompiler(
     compiler_root=COMPILER_ROOT,
     sketch_cache=SKETCH_CACHE,
-    code_sync=_CODE_SYNC,
+    compiler=_NEW_COMPILER,
     only_quick_builds=_ONLY_QUICK_BUILDS,
     compiler_lock=COMPILE_LOCK,
 )
@@ -114,7 +113,7 @@ async def lifespan(app: FastAPI):
 
     if _ALLOW_CODE_SYNC:
         if VOLUME_MAPPED_SRC.exists():
-            _CODE_SYNC.update_and_compile_core(VOLUME_MAPPED_SRC)
+            _NEW_COMPILER.update_src(VOLUME_MAPPED_SRC)
     else:
         print("Code sync disabled")
 
@@ -303,14 +302,6 @@ def compile_wasm(
     print(
         f"Endpoint accessed: /compile/wasm with file: {file.filename}, and build: {build}, profile: {profile}"
     )
-
-    if VOLUME_MAPPED_SRC.exists():
-        print(f"VOLUME_MAPPED_SRC exists: {VOLUME_MAPPED_SRC}")
-        err = _COMPILER_NEW.update_src(VOLUME_MAPPED_SRC)
-        if err:
-            warnings.warn(f"Error updating src from {VOLUME_MAPPED_SRC}: {err}")
-    else:
-        print(f"VOLUME_MAPPED_SRC does not exist: {VOLUME_MAPPED_SRC}")
 
     file_response = _COMPILER.compile(
         file=file,

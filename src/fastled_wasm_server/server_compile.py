@@ -20,8 +20,8 @@ from fastapi import (  # type: ignore
     UploadFile,
 )
 from fastapi.responses import FileResponse  # type: ignore
-from fastled_wasm_compiler.code_sync import CodeSync
-from fastled_wasm_compiler.run import Args
+from fastled_wasm_compiler.compiler import Compiler  # type: ignore
+from fastled_wasm_compiler.run_compile import Args
 
 from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
 
@@ -238,7 +238,7 @@ def server_compile(
     profile: str,
     sketch_cache: DiskLRUCache,
     use_sketch_cache: bool,
-    code_sync: CodeSync,
+    compiler: Compiler,
     only_quick_builds: bool,
     output_dir: Path,
     stats: CompilerStats,
@@ -317,9 +317,10 @@ def server_compile(
             print("Source files changed, clearing cache")
             sketch_cache.clear()
 
-        # code_sync.sync_source_directory_if_volume_is_mapped(callback=on_files_changed)
+        # # code_sync.sync_source_directory_if_volume_is_mapped(callback=on_files_changed)
         if VOLUME_MAPPED_SRC.exists():
-            code_sync.update_and_compile_core(VOLUME_MAPPED_SRC)
+            #     code_sync.update_and_compile_core(VOLUME_MAPPED_SRC)
+            compiler.update_src(VOLUME_MAPPED_SRC)
 
         entry: bytes | None = None
         if hash_value is not None:
@@ -413,13 +414,13 @@ class ServerWasmCompiler:
         self,
         compiler_root: Path,
         sketch_cache: DiskLRUCache,
-        code_sync: CodeSync,
+        compiler: Compiler,
         compiler_lock: threading.Lock,
         only_quick_builds: bool,
     ):
         self.compiler_root = compiler_root
         self.sketch_cache = sketch_cache
-        self.code_sync = code_sync
+        self.compiler = compiler
         self.compiler_lock = compiler_lock
         self.only_quick_builds = only_quick_builds
         self.stats = CompilerStats()
@@ -440,7 +441,7 @@ class ServerWasmCompiler:
             profile=profile,
             sketch_cache=self.sketch_cache,
             use_sketch_cache=use_sketch_cache,
-            code_sync=self.code_sync,
+            compiler=self.compiler,
             only_quick_builds=self.only_quick_builds,
             output_dir=output_dir,
             stats=self.stats,

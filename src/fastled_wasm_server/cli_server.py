@@ -5,10 +5,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from fastled_wasm_compiler.code_sync import CodeSync
-
-from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
-
 _PORT = os.environ.get("PORT", 80)
 HERE = Path(__file__).parent
 
@@ -98,9 +94,6 @@ def run_server(args: Args) -> int:
 def main() -> int:
     print("Running...")
     args: Args = Args.parse_args()
-    if VOLUME_MAPPED_SRC.exists():
-        code_sync = CodeSync()
-        code_sync.update_and_compile_core(VOLUME_MAPPED_SRC)
     try:
         rtn = run_server(args)
         return rtn
