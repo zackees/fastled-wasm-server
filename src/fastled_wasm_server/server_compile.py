@@ -317,9 +317,8 @@ def server_compile(
             print("Source files changed, clearing cache")
             sketch_cache.clear()
 
-        # # code_sync.sync_source_directory_if_volume_is_mapped(callback=on_files_changed)
+
         if VOLUME_MAPPED_SRC.exists():
-            #     code_sync.update_and_compile_core(VOLUME_MAPPED_SRC)
             compiler.update_src(VOLUME_MAPPED_SRC)
 
         entry: bytes | None = None
