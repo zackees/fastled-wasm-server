@@ -318,7 +318,16 @@ def server_compile(
             sketch_cache.clear()
 
         if VOLUME_MAPPED_SRC.exists():
-            compiler.update_src(VOLUME_MAPPED_SRC)
+            files_changed = compiler.update_src(VOLUME_MAPPED_SRC)
+            if isinstance(files_changed, Exception):
+                warnings.warn(
+                    f"Error checking for source file changes: {files_changed}"
+                )
+            elif files_changed:
+                print(
+                    f"Source files changed: {len(files_changed)}\nClearing sketch cache"
+                )
+                sketch_cache.clear()
 
         entry: bytes | None = None
         if hash_value is not None:
