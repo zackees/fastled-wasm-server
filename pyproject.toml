@@ -11,7 +11,7 @@ keywords = ["template-python-cmd"]
 license = { text = "BSD 3-Clause License" }
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "fastled-wasm-compiler>=1.0.47",
+    "fastled-wasm-compiler>=1.0.48",
     "fastapi==0.115.11",
     "uvicorn[standard]==0.34.0",
     "python-multipart==0.0.20",
@@ -20,7 +20,7 @@ dependencies = [
     "wormhole-tx",
 ]
 # Change this with the version number bump.
-version = "1.0.50"
+version = "1.0.51"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
