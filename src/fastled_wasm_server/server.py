@@ -109,8 +109,9 @@ async def lifespan(app: FastAPI):
         start_memory_watchdog(_MEMORY_LIMIT_MB)
 
     if _ALLOW_CODE_SYNC:
-        if VOLUME_MAPPED_SRC.exists():
-            _NEW_COMPILER.update_src(src_to_merge_from=VOLUME_MAPPED_SRC)
+        # if VOLUME_MAPPED_SRC.exists():
+        #     _NEW_COMPILER.update_src(src_to_merge_from=VOLUME_MAPPED_SRC)
+        print("Code sync disabled, skipping code sync")
     else:
         print("Code sync disabled")
 
