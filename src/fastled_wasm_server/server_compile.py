@@ -317,7 +317,6 @@ def server_compile(
             print("Source files changed, clearing cache")
             sketch_cache.clear()
 
-
         if VOLUME_MAPPED_SRC.exists():
             compiler.update_src(VOLUME_MAPPED_SRC)
 
