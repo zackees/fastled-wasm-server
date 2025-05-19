@@ -318,7 +318,10 @@ def server_compile(
             sketch_cache.clear()
 
         if VOLUME_MAPPED_SRC.exists():
-            files_changed = compiler.update_src(VOLUME_MAPPED_SRC)
+            builds = [build]
+            files_changed = compiler.update_src(
+                builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
+            )
             if isinstance(files_changed, Exception):
                 warnings.warn(
                     f"Error checking for source file changes: {files_changed}"

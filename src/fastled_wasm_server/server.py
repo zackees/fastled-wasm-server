@@ -113,7 +113,7 @@ async def lifespan(app: FastAPI):
 
     if _ALLOW_CODE_SYNC:
         if VOLUME_MAPPED_SRC.exists():
-            _NEW_COMPILER.update_src(VOLUME_MAPPED_SRC)
+            _NEW_COMPILER.update_src(src_to_merge_from=VOLUME_MAPPED_SRC)
     else:
         print("Code sync disabled")
 
