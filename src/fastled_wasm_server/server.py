@@ -40,9 +40,6 @@ from fastled_wasm_server.upload_size_middleware import UploadSizeMiddleware
 
 _COMPILER_STATS = CompilerStats()
 
-
-_COMPILER_NEW = Compiler()
-
 _TEST = False
 _UPLOAD_LIMIT = 10 * 1024 * 1024
 _MEMORY_LIMIT_MB = int(os.environ.get("MEMORY_LIMIT_MB", "0"))  # 0 means disabled

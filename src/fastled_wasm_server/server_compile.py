@@ -313,10 +313,6 @@ def server_compile(
                     f"Error generating hash: {e}, fast cache access is disabled for this build."
                 )
 
-        def on_files_changed() -> None:
-            print("Source files changed, clearing cache")
-            sketch_cache.clear()
-
         if VOLUME_MAPPED_SRC.exists():
             builds = [build]
             files_changed = compiler.update_src(
