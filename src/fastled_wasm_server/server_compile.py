@@ -135,6 +135,7 @@ def _compile_source(
         stdout_lines: list[str] = []
 
         for line in iter(proc.stdout.readline, ""):
+            line = line.replace("/git/src", "src").replace("/git/fastled/src", "src")
             print(line, end="")
             stdout_lines.append(line)
         _print("Compiler finished.")
