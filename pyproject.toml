@@ -15,12 +15,12 @@ dependencies = [
     "fastapi==0.115.11",
     "uvicorn[standard]==0.34.0",
     "python-multipart==0.0.20",
-    "disklru==2.0.0",
+    "disklru>=2.0.4",
     "psutil==6.1.1",
     "wormhole-tx",
 ]
 # Change this with the version number bump.
-version = "1.0.74"
+version = "1.0.75"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
