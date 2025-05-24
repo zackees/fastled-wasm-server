@@ -103,17 +103,20 @@ def _compile_source(
 
     _print("Files are ready, waiting for compile lock...")
     compile_lock_start = time.time()
+    keep_files = (
+        build_mode.lower() == "debug"
+    )  # Keep files so they can be source mapped during debug.
     args: Args = Args(
         compiler_root=compiler_root,
         assets_dirs=FASTLED_COMPILER_DIR,
         mapped_dir=temp_src_dir,
-        keep_files=False,
+        keep_files=keep_files,
         only_copy=False,
         only_insert_header=False,
         only_compile=False,
         profile=profile,
         disable_auto_clean=False,
-        no_platformio=True,
+        no_platformio=False,
         clear_ccache=False,
         debug=build_mode.lower() == "debug",
         quick=build_mode.lower() == "quick",
