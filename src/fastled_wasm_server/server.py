@@ -224,15 +224,15 @@ def project_init_example(
     return out
 
 
-@app.get("/dwarfsource/{suffix_path:path}")
-def dwarfsource(suffix_path: str) -> Response:
+@app.get("/dwarfsource/{path:path}")
+def dwarfsource(path: str) -> Response:
     """File servering for step through debugging."""
     path_or_err: Path | Exception = dwarf_path_to_file_path(
-        f"{suffix_path}",
+        f"{path}",
     )
     if isinstance(path_or_err, Exception):
         return Response(
-            content=str(path_or_err),
+            content=f"Could not resolve {path}: {path_or_err}",
             media_type="text/plain",
             status_code=400,
         )
