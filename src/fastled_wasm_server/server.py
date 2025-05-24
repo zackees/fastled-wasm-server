@@ -20,6 +20,7 @@ from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
 )
+from pydantic import BaseModel
 
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.examples import EXAMPLES
@@ -224,15 +225,21 @@ def project_init_example(
     return out
 
 
-@app.get("/dwarfsource/{path:path}")
-def dwarfsource(path: str) -> Response:
-    """File servering for step through debugging."""
+class DwarfSourceRequest(BaseModel):
+    """Request model for dwarf source file retrieval."""
+
+    path: str
+
+
+@app.post("/dwarfsource")
+def dwarfsource(request: DwarfSourceRequest) -> Response:
+    """File serving for step through debugging."""
     path_or_err: Path | Exception = dwarf_path_to_file_path(
-        f"{path}",
+        f"{request.path}",
     )
     if isinstance(path_or_err, Exception):
         return Response(
-            content=f"Could not resolve {path}: {path_or_err}",
+            content=f"Could not resolve {request.path}: {path_or_err}",
             media_type="text/plain",
             status_code=400,
         )

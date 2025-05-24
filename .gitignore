@@ -141,3 +141,6 @@ activate
 **/.DS_Store
 uv.lock
 .aider*
+
+!.aider.conf.yml
+!.aiderignore
