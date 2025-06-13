@@ -38,6 +38,10 @@ def hash_string(s: str) -> str:
     return hashlib.sha256(s.encode()).hexdigest()
 
 
+def is_source_file(filename: str, src_file_extensions: list[str]) -> bool:
+    return any(filename.endswith(ext) for ext in src_file_extensions)
+
+
 def collect_files(
     directory: Path, src_file_extensions: list[str] | None = None
 ) -> ProjectFiles:
@@ -55,17 +59,16 @@ def collect_files(
     src_files: list[Path] = []
     other_files: list[Path] = []
 
-    def is_source_file(filename: str) -> bool:
-        return any(filename.endswith(ext) for ext in src_file_extensions)
-
     for root, _, filenames in os.walk(str(directory)):
         for filename in filenames:
             print(f"Checking file: {filename}")
             file_path = Path(os.path.join(root, filename))
 
-            if is_source_file(filename):
+            if is_source_file(filename, src_file_extensions):
+                print("Found source file:", file_path)
                 src_files.append(file_path)
             else:
+                print("Found non source file:", file_path)
                 other_files.append(file_path)
 
     return ProjectFiles(src_files=src_files, other_files=other_files)
