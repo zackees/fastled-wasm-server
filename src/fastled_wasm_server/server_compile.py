@@ -27,10 +27,10 @@ from fastled_wasm_compiler.sketch_hasher import (
 )
 
 from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
+from fastled_wasm_server.types import CompilerStats
 
 # from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
 
-from fastled_wasm_server.types import CompilerStats
 
 # TODO Fix.
 FASTLED_COMPILER_DIR = Path("/git/fastled/src/platforms/wasm/compiler")
