@@ -22,13 +22,14 @@ from fastapi import (  # type: ignore
 from fastapi.responses import FileResponse  # type: ignore
 from fastled_wasm_compiler.compiler import Compiler  # type: ignore
 from fastled_wasm_compiler.run_compile import Args
+from fastled_wasm_compiler.sketch_hasher import (
+    generate_hash_of_project_files,  # type: ignore
+)
 
 from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
 
 # from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
-from fastled_wasm_server.sketch_hasher import (
-    generate_hash_of_project_files,  # type: ignore
-)
+
 from fastled_wasm_server.types import CompilerStats
 
 # TODO Fix.
