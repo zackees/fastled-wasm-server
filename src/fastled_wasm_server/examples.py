@@ -1,8 +1,9 @@
 EXAMPLES: list[str] = [
+    "Audio",
+    "Animartrix",
     "Chromancer",
     "LuminescentGrand",
     "wasm",
-    "FxAnimartrix",
     "FxCylon",
     "FxDemoReel100",
     "FxFire2012",
