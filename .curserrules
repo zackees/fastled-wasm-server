@@ -1,22 +1,78 @@
 # FastLED WASM Server Project Rules
 
+## ⚠️ CRITICAL: This is a UV-Only Project
+**DO NOT USE python/python3/pip/pip3 DIRECTLY** - This project exclusively uses `uv` for all Python operations.
+
+## UV Installation & Setup
+
+### Auto-Install UV (Recommended)
+```bash
+./install                    # Automatically installs uv if not present, sets up venv
+```
+
+### Manual UV Installation (if needed)
+```bash
+# macOS
+brew install uv
+
+# Linux/Unix
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# OR
+pip3 install uv
+
+# Windows (git-bash)
+pip install uv
+```
+
+### Verify UV Installation
+```bash
+uv --version                 # Should show uv version
+which uv                     # Should show uv path
+```
+
 ## Project Overview
 This is a FastLED WASM server project that compiles Arduino/FastLED sketches to WASM using a FastAPI backend.
 - Main package: `fastled_wasm_server`
 - Requires Python 3.10+ (install script uses 3.11)
-- **CRITICAL**: This is a UV project - do NOT use python/python3/pip directly, use `uv` commands
+- **MANDATORY**: Use `uv` for ALL Python operations
 
 ## Environment Setup
 - Only works in the `niteris/fastled-wasm` container
 - Requires `git-bash` on Windows
-- Uses `uv` for all Python package management
+- Uses `uv` exclusively for Python package management
+- Virtual environment managed by uv
 
-## Development Commands (Use these instead of python/pip)
-
-### Initial Setup
+### First-Time Setup
 ```bash
-./install                    # Sets up uv venv with Python 3.11, installs deps
+./install                    # Downloads uv (if needed), creates venv, installs all deps
 source activate             # Activate the virtual environment (symlinked by install)
+```
+
+### Environment Verification
+```bash
+uv python list              # List available Python versions
+uv venv --help              # Verify uv venv functionality
+uv pip list                 # Show installed packages in current environment
+```
+
+## Development Commands (UV-Only - DO NOT use python/pip)
+
+### Package Management
+```bash
+uv add <package>            # Add new dependency
+uv remove <package>         # Remove dependency
+uv pip install <package>    # Install package to current venv
+uv pip install -e .         # Install project in editable mode
+uv pip install -r requirements.txt  # Install from requirements file
+uv pip freeze               # List installed packages
+uv sync                     # Sync dependencies from lock file
+```
+
+### Running Python Code
+```bash
+uv run python <script.py>   # Run Python script
+uv run python -m <module>   # Run Python module
+uv run <command>            # Run any command in the uv environment
 ```
 
 ### Testing
@@ -24,12 +80,14 @@ source activate             # Activate the virtual environment (symlinked by ins
 ./test                       # Runs: uv run pytest -n auto tests -v --durations=0
 # OR directly:
 uv run pytest -n auto tests -v --durations=0
+uv run pytest tests/        # Run specific test directory
+uv run pytest -k "test_name" # Run specific test
 ```
 
 ### Linting
 ```bash
 ./lint                       # Runs full linting suite via uv
-# Individual linting tools:
+# Individual linting tools (all via uv run):
 uv run ruff check --fix src tests
 uv run black src tests
 uv run isort --profile black src tests
@@ -45,8 +103,8 @@ uv run pyright src tests
 ```bash
 ./upload_package.sh          # Builds wheel and uploads to PyPI via uv
 # OR step by step:
-uv build --wheel
-uv run twine upload dist/*
+uv build --wheel            # Build wheel with uv
+uv run twine upload dist/*   # Upload via uv-managed environment
 ```
 
 ## Running the Application
@@ -72,15 +130,21 @@ uv run python -m fastled_wasm_server.cli_server [options]
 uv run uvicorn fastled_wasm_server.server:app --host 0.0.0.0 --port 80
 ```
 
+### Development Server
+```bash
+uv run uvicorn fastled_wasm_server.server:app --reload --host 0.0.0.0 --port 8000
+```
+
 ## Dependencies
 - Main deps: fastled-wasm-compiler, fastapi, uvicorn, python-multipart, disklru, psutil, wormhole-tx
-- Testing deps: black, isort, mypy, pytest, tox, ruff, pyright, pytest-xdist
+- Dev deps: black, isort, pyright, pytest, pytest-xdist, ruff (managed in pyproject.toml [dependency-groups])
 
 ## File Structure Notes
 - Source code: `src/fastled_wasm_server/`
 - Main server: `server.py`
 - CLI modules: `cli_compile.py`, `cli_server.py`, `cli.py`
 - Configuration: `pyproject.toml` (setuptools-based with uv)
+- UV venv: `.venv/` (created by install script)
 
 ## Important Environment Variables (Server)
 - `PORT`: Server port (default: 80)
@@ -89,10 +153,53 @@ uv run uvicorn fastled_wasm_server.server:app --host 0.0.0.0 --port 80
 - `NO_AUTO_UPDATE`: Disable auto updates
 - `NO_SKETCH_CACHE`: Disable sketch caching
 
-## Key Rules
-1. **NEVER use python/python3/pip directly** - always use `uv run` or `uv` commands
-2. Run `./install` first for project setup
-3. Use `./test` for running tests (not pytest directly)
-4. Use `./lint` for linting (not individual tools directly)
-5. This project requires the niteris/fastled-wasm container environment
-6. On Windows, use git-bash shell
+## Troubleshooting UV Issues
+
+### UV Not Found
+```bash
+which uv                    # Check if uv is in PATH
+./install                   # Re-run install script (installs uv if missing)
+```
+
+### Virtual Environment Issues
+```bash
+uv venv --seed              # Recreate virtual environment
+rm -rf .venv                # Remove existing venv
+./install                   # Recreate everything
+```
+
+### Dependency Issues
+```bash
+uv pip install --upgrade pip  # Upgrade pip in uv environment
+uv sync --all-extras        # Sync all dependencies including extras
+```
+
+## Absolute Rules (Non-Negotiable)
+1. **NEVER use python/python3/pip/pip3 directly** - always use `uv run` or `uv` commands
+2. **ALWAYS run `./install` first** for project setup and uv installation
+3. **Use `./test` for running tests** (not pytest directly)
+4. **Use `./lint` for linting** (not individual tools directly)
+5. **This project requires the niteris/fastled-wasm container environment**
+6. **On Windows, use git-bash shell exclusively**
+7. **All Python package operations must go through uv** (uv add, uv remove, uv pip install)
+8. **When in doubt, prefix commands with `uv run`**
+
+## Quick Reference
+```bash
+# Setup
+./install && source activate
+
+# Development
+uv run python -m fastled_wasm_server.cli_server
+uv run pytest tests/
+uv add requests             # Add dependency
+uv run black src            # Format code
+
+# Never do this:
+python script.py            # ❌ Wrong
+pip install package         # ❌ Wrong
+
+# Always do this:
+uv run python script.py     # ✅ Correct
+uv pip install package      # ✅ Correct
+```
