@@ -1,0 +1,98 @@
+# FastLED WASM Server Project Rules
+
+## Project Overview
+This is a FastLED WASM server project that compiles Arduino/FastLED sketches to WASM using a FastAPI backend.
+- Main package: `fastled_wasm_server`
+- Requires Python 3.10+ (install script uses 3.11)
+- **CRITICAL**: This is a UV project - do NOT use python/python3/pip directly, use `uv` commands
+
+## Environment Setup
+- Only works in the `niteris/fastled-wasm` container
+- Requires `git-bash` on Windows
+- Uses `uv` for all Python package management
+
+## Development Commands (Use these instead of python/pip)
+
+### Initial Setup
+```bash
+./install                    # Sets up uv venv with Python 3.11, installs deps
+source activate             # Activate the virtual environment (symlinked by install)
+```
+
+### Testing
+```bash
+./test                       # Runs: uv run pytest -n auto tests -v --durations=0
+# OR directly:
+uv run pytest -n auto tests -v --durations=0
+```
+
+### Linting
+```bash
+./lint                       # Runs full linting suite via uv
+# Individual linting tools:
+uv run ruff check --fix src tests
+uv run black src tests
+uv run isort --profile black src tests
+uv run pyright src tests
+```
+
+### Cleanup
+```bash
+./clean                      # Removes build artifacts, cache files, .venv, etc.
+```
+
+### Package Building & Publishing
+```bash
+./upload_package.sh          # Builds wheel and uploads to PyPI via uv
+# OR step by step:
+uv build --wheel
+uv run twine upload dist/*
+```
+
+## Running the Application
+
+### Main CLI Entry Point
+```bash
+uv run fastled-wasm-server   # Main command (maps to cli_compile.py)
+```
+
+### Server Mode
+```bash
+uv run python -m fastled_wasm_server.cli_server [options]
+# Options:
+#   --cwd PATH              # Working directory
+#   --disable-auto-clean    # Disable auto cleanup
+#   --allow-shutdown        # Allow server shutdown
+#   --no-auto-update        # Disable auto updates
+#   --no-sketch-cache       # Disable sketch caching
+```
+
+### Direct Server with Uvicorn
+```bash
+uv run uvicorn fastled_wasm_server.server:app --host 0.0.0.0 --port 80
+```
+
+## Dependencies
+- Main deps: fastled-wasm-compiler, fastapi, uvicorn, python-multipart, disklru, psutil, wormhole-tx
+- Testing deps: black, isort, mypy, pytest, tox, ruff, pyright, pytest-xdist
+
+## File Structure Notes
+- Source code: `src/fastled_wasm_server/`
+- Main server: `server.py`
+- CLI modules: `cli_compile.py`, `cli_server.py`, `cli.py`
+- Configuration: `pyproject.toml` (setuptools-based with uv)
+
+## Important Environment Variables (Server)
+- `PORT`: Server port (default: 80)
+- `DISABLE_AUTO_CLEAN`: Disable auto cleanup
+- `ALLOW_SHUTDOWN`: Allow server shutdown
+- `NO_AUTO_UPDATE`: Disable auto updates
+- `NO_SKETCH_CACHE`: Disable sketch caching
+
+## Key Rules
+1. **NEVER use python/python3/pip directly** - always use `uv run` or `uv` commands
+2. Run `./install` first for project setup
+3. Use `./test` for running tests (not pytest directly)
+4. Use `./lint` for linting (not individual tools directly)
+5. This project requires the niteris/fastled-wasm container environment
+6. On Windows, use git-bash shell
