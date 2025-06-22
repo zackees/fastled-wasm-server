@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["m"]
+# dependencies = ["mcp"]
 # ///
 #
 
@@ -48,9 +48,9 @@ from fastled_wasm_server.types import CompilerStats
 # MCP imports - install with: uv add mcp
 MCP_AVAILABLE = False
 try:
-    from mcp import types
-    from mcp.server import Server
-    from mcp.server.stdio import stdio_server
+    from mcp import types  # type: ignore
+    from mcp.server import Server  # type: ignore
+    from mcp.server.stdio import stdio_server  # type: ignore
 
     MCP_AVAILABLE = True
 except ImportError:
@@ -58,10 +58,12 @@ except ImportError:
 
 # Always try to import pydantic AnyUrl
 try:
-    from pydantic import AnyUrl
+    from pydantic import AnyUrl as PydanticAnyUrl
+
+    AnyUrl = PydanticAnyUrl  # type: ignore
 except ImportError:
     # Fallback AnyUrl implementation
-    class AnyUrl(str):
+    class AnyUrl(str):  # type: ignore
         def __new__(cls, url: str):
             return str.__new__(cls, url)
 
@@ -122,7 +124,7 @@ if not MCP_AVAILABLE:
 
             return decorator
 
-        def run(self, *args, **kwargs):
+        async def run(self, *args, **kwargs):
             pass
 
         def create_initialization_options(self):
@@ -148,9 +150,7 @@ _COMPILER_STATS = CompilerStats()
 _NEW_COMPILER = Compiler(volume_mapped_src=VOLUME_MAPPED_SRC)
 
 # Create a minimal cache for MCP server
-_SKETCH_CACHE = DiskLRUCache(
-    cache_dir=str(Path("/tmp/mcp_sketch_cache")), max_size_mb=100
-)
+_SKETCH_CACHE = DiskLRUCache(str(Path("/tmp/mcp_sketch_cache")), 50)
 
 _COMPILER = ServerWasmCompiler(
     compiler_root=Path("/tmp/compiler"),  # Default compiler root
@@ -192,32 +192,32 @@ class MockBackgroundTasks:
             logger.warning(f"Background task failed: {e}")
 
 
-def create_mcp_server() -> Server:
+def create_mcp_server():  # type: ignore
     """Create and configure the MCP server with all tools and resources."""
     if not MCP_AVAILABLE:
         raise ImportError("MCP package not available. Install with: uv add mcp")
 
     # Initialize the server
-    server = Server("fastled-wasm-server")
+    server = Server("fastled-wasm-server")  # type: ignore
 
     @server.list_resources()
-    async def list_resources() -> List[types.Resource]:
+    async def list_resources() -> List[types.Resource]:  # type: ignore
         """List available resources."""
         return [
-            types.Resource(
-                uri=AnyUrl("fastled://examples"),
+            types.Resource(  # type: ignore
+                uri=str(AnyUrl("fastled://examples")),
                 name="FastLED Examples",
                 description="Available FastLED example sketches",
                 mimeType="application/json",
             ),
-            types.Resource(
-                uri=AnyUrl("fastled://compiler/stats"),
+            types.Resource(  # type: ignore
+                uri=str(AnyUrl("fastled://compiler/stats")),
                 name="Compiler Statistics",
                 description="Current compiler usage statistics",
                 mimeType="application/json",
             ),
-            types.Resource(
-                uri=AnyUrl("fastled://server/settings"),
+            types.Resource(  # type: ignore
+                uri=str(AnyUrl("fastled://server/settings")),
                 name="Server Settings",
                 description="Current server configuration",
                 mimeType="application/json",
@@ -225,7 +225,7 @@ def create_mcp_server() -> Server:
         ]
 
     @server.read_resource()
-    async def read_resource(uri: AnyUrl) -> str:
+    async def read_resource(uri: AnyUrl) -> str:  # type: ignore
         """Read a resource by URI."""
         if uri.scheme != "fastled":
             raise ValueError(f"Unsupported URI scheme: {uri.scheme}")
@@ -256,10 +256,10 @@ def create_mcp_server() -> Server:
             raise ValueError(f"Unknown resource path: {path}")
 
     @server.list_tools()
-    async def list_tools() -> List[types.Tool]:
+    async def list_tools() -> List[types.Tool]:  # type: ignore
         """List available tools."""
         return [
-            types.Tool(
+            types.Tool(  # type: ignore
                 name="compile_sketch",
                 description="Compile an Arduino/FastLED sketch to WASM",
                 inputSchema={
@@ -284,7 +284,7 @@ def create_mcp_server() -> Server:
                     "required": ["sketch_content"],
                 },
             ),
-            types.Tool(
+            types.Tool(  # type: ignore
                 name="get_example",
                 description="Fetch a FastLED example sketch",
                 inputSchema={
@@ -298,12 +298,12 @@ def create_mcp_server() -> Server:
                     "required": ["example_name"],
                 },
             ),
-            types.Tool(
+            types.Tool(  # type: ignore
                 name="list_examples",
                 description="List all available FastLED examples",
                 inputSchema={"type": "object", "properties": {}},
             ),
-            types.Tool(
+            types.Tool(  # type: ignore
                 name="get_compiler_status",
                 description="Get current compiler status and statistics",
                 inputSchema={"type": "object", "properties": {}},
@@ -313,7 +313,7 @@ def create_mcp_server() -> Server:
     @server.call_tool()
     async def call_tool(
         name: str, arguments: Dict[str, Any]
-    ) -> List[types.TextContent]:
+    ) -> List[types.TextContent]:  # type: ignore
         """Handle tool calls."""
 
         if name == "compile_sketch":
@@ -330,7 +330,7 @@ def create_mcp_server() -> Server:
     return server
 
 
-async def handle_compile_sketch(arguments: Dict[str, Any]) -> List[types.TextContent]:
+async def handle_compile_sketch(arguments: Dict[str, Any]) -> List[types.TextContent]:  # type: ignore
     """Handle sketch compilation."""
     sketch_content = arguments["sketch_content"]
     build_mode = arguments.get("build_mode", "quick")
@@ -386,10 +386,10 @@ async def handle_compile_sketch(arguments: Dict[str, Any]) -> List[types.TextCon
         # Clean up temporary file
         temp_path.unlink(missing_ok=True)
 
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]  # type: ignore
 
 
-async def handle_get_example(arguments: Dict[str, Any]) -> List[types.TextContent]:
+async def handle_get_example(arguments: Dict[str, Any]) -> List[types.TextContent]:  # type: ignore
     """Handle example retrieval."""
     example_name = arguments["example_name"]
 
@@ -407,19 +407,19 @@ async def handle_get_example(arguments: Dict[str, Any]) -> List[types.TextConten
             "note": "Use the FastLED server's /project/init endpoint to download the actual files",
         }
 
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]  # type: ignore
 
 
-async def handle_list_examples(arguments: Dict[str, Any]) -> List[types.TextContent]:
+async def handle_list_examples(arguments: Dict[str, Any]) -> List[types.TextContent]:  # type: ignore
     """Handle listing examples."""
     result = {"status": "success", "examples": EXAMPLES, "count": len(EXAMPLES)}
 
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]  # type: ignore
 
 
 async def handle_get_compiler_status(
     arguments: Dict[str, Any],
-) -> List[types.TextContent]:
+) -> List[types.TextContent]:  # type: ignore
     """Handle compiler status retrieval."""
     result = {
         "status": "success",
@@ -441,7 +441,7 @@ async def handle_get_compiler_status(
         },
     }
 
-    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+    return [types.TextContent(type="text", text=json.dumps(result, indent=2))]  # type: ignore
 
 
 async def main():
