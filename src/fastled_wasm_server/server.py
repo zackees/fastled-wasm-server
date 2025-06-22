@@ -337,44 +337,14 @@ async def compile_libfastled(
 
     print("Endpoint accessed: /compile/libfastled")
 
-    async def stream_compilation() -> AsyncGenerator[bytes, None]:
-        """Stream the compilation output line by line."""
-        try:
-            # Run the build_archive.sh script to compile libfastled
-            process = await asyncio.create_subprocess_exec(
-                "/bin/bash",
-                str(COMPILER_ROOT / "build_archive.sh"),
-                cwd=COMPILER_ROOT,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,  # Combine stderr with stdout
-            )
+    # Import the compiler module
+    from fastled_wasm_server.libfastled_compiler import create_compiler
 
-            # Stream output line by line
-            assert process.stdout is not None
-            while True:
-                line = await process.stdout.readline()
-                if not line:
-                    break
-                decoded_line = line.decode("utf-8", errors="replace")
-                yield f"data: {decoded_line}".encode()
-
-            # Wait for process to complete and get return code
-            return_code = await process.wait()
-
-            # Send final status
-            if return_code == 0:
-                status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: SUCCESS\n"
-            else:
-                status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: FAIL\n"
-
-            yield status_message.encode()
-
-        except Exception as e:
-            error_message = f"data: ERROR: {str(e)}\ndata: COMPILATION_COMPLETE\ndata: EXIT_CODE: -1\ndata: STATUS: FAIL\n"
-            yield error_message.encode()
+    # Create compiler instance (will auto-detect if mocking is needed)
+    compiler = create_compiler(COMPILER_ROOT)
 
     return StreamingResponse(
-        stream_compilation(),
+        compiler.compile_stream(),
         media_type="text/plain",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
