@@ -1,9 +1,11 @@
+import asyncio
 import json
 import os
 import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncGenerator
 
 from disklru import DiskLRUCache
 from fastapi import (
@@ -15,7 +17,12 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
@@ -317,3 +324,57 @@ def compile_wasm(
         background_tasks=background_tasks,
     )
     return file_response
+
+
+@app.post("/compile/libfastled")
+async def compile_libfastled(
+    authorization: str = Header(None),
+) -> StreamingResponse:
+    """Compile libfastled library and stream the compilation output."""
+
+    if not _TEST and authorization != _AUTH_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    print("Endpoint accessed: /compile/libfastled")
+
+    async def stream_compilation() -> AsyncGenerator[bytes, None]:
+        """Stream the compilation output line by line."""
+        try:
+            # Run the build_archive.sh script to compile libfastled
+            process = await asyncio.create_subprocess_exec(
+                "/bin/bash",
+                str(COMPILER_ROOT / "build_archive.sh"),
+                cwd=COMPILER_ROOT,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,  # Combine stderr with stdout
+            )
+
+            # Stream output line by line
+            assert process.stdout is not None
+            while True:
+                line = await process.stdout.readline()
+                if not line:
+                    break
+                decoded_line = line.decode("utf-8", errors="replace")
+                yield f"data: {decoded_line}".encode()
+
+            # Wait for process to complete and get return code
+            return_code = await process.wait()
+
+            # Send final status
+            if return_code == 0:
+                status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: SUCCESS\n"
+            else:
+                status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: FAIL\n"
+
+            yield status_message.encode()
+
+        except Exception as e:
+            error_message = f"data: ERROR: {str(e)}\ndata: COMPILATION_COMPLETE\ndata: EXIT_CODE: -1\ndata: STATUS: FAIL\n"
+            yield error_message.encode()
+
+    return StreamingResponse(
+        stream_compilation(),
+        media_type="text/plain",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
