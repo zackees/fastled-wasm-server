@@ -49,5 +49,15 @@ profile = "black"
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
 
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "pyright>=1.1.402",
+    "pytest>=8.4.1",
+    "pytest-xdist>=3.7.0",
+    "ruff>=0.12.0",
+]
+
 [project.scripts]
 fastled-wasm-server = "fastled_wasm_server.cli_compile:main"

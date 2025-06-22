@@ -1,11 +1,10 @@
+import asyncio
 import json
 import os
 import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
-import subprocess
-import asyncio
 from typing import AsyncGenerator
 
 from disklru import DiskLRUCache
@@ -18,7 +17,12 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
-from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
@@ -344,27 +348,27 @@ async def compile_libfastled(
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,  # Combine stderr with stdout
             )
-            
+
             # Stream output line by line
             assert process.stdout is not None
             while True:
                 line = await process.stdout.readline()
                 if not line:
                     break
-                decoded_line = line.decode('utf-8', errors='replace')
+                decoded_line = line.decode("utf-8", errors="replace")
                 yield f"data: {decoded_line}".encode()
-            
+
             # Wait for process to complete and get return code
             return_code = await process.wait()
-            
+
             # Send final status
             if return_code == 0:
                 status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: SUCCESS\n"
             else:
                 status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: FAIL\n"
-            
+
             yield status_message.encode()
-            
+
         except Exception as e:
             error_message = f"data: ERROR: {str(e)}\ndata: COMPILATION_COMPLETE\ndata: EXIT_CODE: -1\ndata: STATUS: FAIL\n"
             yield error_message.encode()
