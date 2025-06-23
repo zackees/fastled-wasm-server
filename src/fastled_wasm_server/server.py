@@ -304,6 +304,7 @@ def compile_wasm(
     authorization: str = Header(None),
     build: str = Header(None),
     profile: str = Header(None),
+    strict: bool = Header(False),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
@@ -322,6 +323,7 @@ def compile_wasm(
         output_dir=OUTPUT_DIR,
         use_sketch_cache=not _NO_SKETCH_CACHE,
         background_tasks=background_tasks,
+        strict=strict,
     )
     return file_response
 

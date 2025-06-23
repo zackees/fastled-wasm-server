@@ -75,6 +75,7 @@ def _compile_source(
     compiler_lock: threading.Lock,
     output_dir: Path,
     stats: CompilerStats,
+    strict: bool = False,
     hash_value: str | None = None,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
@@ -122,6 +123,7 @@ def _compile_source(
         debug=build_mode.lower() == "debug",
         quick=build_mode.lower() == "quick",
         release=build_mode.lower() == "release",
+        strict=strict,
     )
     cmd = ["fastled-wasm-compiler"] + args.to_cmd_args()
 
@@ -246,6 +248,7 @@ def server_compile(
     use_sketch_cache: bool,
     compiler: Compiler,
     only_quick_builds: bool,
+    strict: bool,
     output_dir: Path,
     stats: CompilerStats,
     compiler_lock: threading.Lock,
@@ -374,6 +377,7 @@ def server_compile(
             output_dir=output_dir,
             compiler_lock=compiler_lock,
             stats=stats,
+            strict=strict,
             hash_value=hash_value,
         )
         if isinstance(out, HTTPException):
@@ -445,6 +449,7 @@ class ServerWasmCompiler:
         output_dir: Path,
         background_tasks: BackgroundTasks,
         use_sketch_cache: bool,
+        strict: bool,
     ) -> FileResponse:
         return server_compile(
             compiler_root=self.compiler_root,
@@ -453,6 +458,7 @@ class ServerWasmCompiler:
             profile=profile,
             sketch_cache=self.sketch_cache,
             use_sketch_cache=use_sketch_cache,
+            strict=strict,
             compiler=self.compiler,
             only_quick_builds=self.only_quick_builds,
             output_dir=output_dir,
