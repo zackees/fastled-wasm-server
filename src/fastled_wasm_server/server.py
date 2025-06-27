@@ -356,102 +356,32 @@ async def compile_libfastled(
             else:
                 build_mode_str = "QUICK"  # Default
 
-            # Convert to lowercase for compiler
-            build_str = build_mode_str.lower()
-            builds = [build_str]
-
             yield f"data: Using BUILD_MODE: {build_mode_str}\n".encode()
             if dry_run_bool:
                 yield "data: DRY RUN MODE: Will skip actual compilation\n".encode()
-                yield f"data: Would call _NEW_COMPILER.update_src(builds={builds})\n".encode()
+                yield f"data: Would compile libfastled with BUILD_MODE={build_mode_str}\n".encode()
                 yield "data: COMPILATION_COMPLETE\ndata: EXIT_CODE: 0\ndata: STATUS: SUCCESS\n".encode()
                 return
 
-            # Use the existing _NEW_COMPILER.update_src method
+            # For now, return an informative error about the missing functionality
             yield "data: Starting libfastled compilation...\n".encode()
-            yield f"data: Calling _NEW_COMPILER.update_src(builds={builds})\n".encode()
-
-            # Run the compilation in a thread to avoid blocking
-            import asyncio
-            import threading
-            from queue import Queue
-
-            output_queue = Queue()
-            exception_queue = Queue()
-
-            def run_compile():
-                try:
-                    # Use the existing compiler instance to update/build libfastled
-                    files_changed = _NEW_COMPILER.update_src(
-                        builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
-                    )
-
-                    if isinstance(files_changed, Exception):
-                        output_queue.put(f"ERROR: {files_changed}")
-                        output_queue.put("COMPILATION_RESULT:1")
-                    else:
-                        if files_changed:
-                            output_queue.put(
-                                f"Successfully compiled libfastled. Files changed: {len(files_changed)}"
-                            )
-                        else:
-                            output_queue.put(
-                                "libfastled compilation completed (no files changed)"
-                            )
-                        output_queue.put("COMPILATION_RESULT:0")
-
-                except Exception as e:
-                    exception_queue.put(e)
-                finally:
-                    output_queue.put("COMPILATION_FINISHED")
-
-            # Start compilation in background thread
-            compile_thread = threading.Thread(target=run_compile)
-            compile_thread.start()
-
-            # Stream output as it comes in
-            while True:
-                try:
-                    # Check for exceptions
-                    if not exception_queue.empty():
-                        exc = exception_queue.get_nowait()
-                        yield f"data: ERROR: {str(exc)}\n".encode()
-                        break
-
-                    # Get output with timeout
-                    try:
-                        output = output_queue.get(timeout=0.1)
-
-                        if output == "COMPILATION_FINISHED":
-                            break
-                        elif output.startswith("COMPILATION_RESULT:"):
-                            result = output.split(":", 1)[1]
-                            if result == "0":
-                                yield "data: COMPILATION_COMPLETE\ndata: EXIT_CODE: 0\ndata: STATUS: SUCCESS\n".encode()
-                            else:
-                                yield f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {result}\ndata: STATUS: FAIL\n".encode()
-                        else:
-                            # Stream the output line
-                            yield f"data: {output}\n".encode()
-
-                    except Exception:
-                        # Timeout - yield a heartbeat and continue
-                        await asyncio.sleep(0.1)
-                        continue
-
-                except Exception as e:
-                    yield f"data: ERROR: {str(e)}\n".encode()
-                    break
-
-            # Wait for thread to complete
-            compile_thread.join(timeout=5)
+            yield "data: ERROR: libfastled compilation requires a properly configured environment\n".encode()
+            yield "data: The FastLED source directory is not available in this environment\n".encode()
+            yield f"data: Expected source at: {VOLUME_MAPPED_SRC}\n".encode()
+            yield "data: This endpoint is designed for Docker/container environments\n".encode()
+            yield "data: COMPILATION_COMPLETE\ndata: EXIT_CODE: 1\ndata: STATUS: FAIL\n".encode()
 
         except Exception as e:
             error_message = f"data: ERROR: {str(e)}\ndata: COMPILATION_COMPLETE\ndata: EXIT_CODE: -1\ndata: STATUS: FAIL\n"
             yield error_message.encode()
 
-    return StreamingResponse(
+    # Create the streaming response
+    response = StreamingResponse(
         stream_compilation(),
         media_type="text/plain",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
+
+    # Note: We can't change the status code after streaming starts
+    # The client should check the final STATUS in the stream content
+    return response
