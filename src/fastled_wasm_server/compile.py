@@ -582,5 +582,67 @@ def main() -> int:
     return run(args)
 
 
+def compile_libfastled(compiler_root: Path, build_mode: BuildMode) -> int:
+    """
+    Compile only the libfastled archive without any project dependencies.
+    This function directly calls build_archive.sh to build libfastled.a.
+    """
+    print("Starting libfastled archive compilation...")
+    env = os.environ.copy()
+    env["BUILD_MODE"] = build_mode.name
+    print(banner(f"libfastled is building in mode: {build_mode.name}"))
+
+    # Call build_archive.sh directly - this only builds libfastled.a
+    cmd_list = ["/bin/bash", str(compiler_root / "build_archive.sh")]
+
+    def _open_process(cmd_list: list[str] = cmd_list) -> subprocess.Popen:
+        print(
+            banner(
+                "Archive build started with command:\n  "
+                + subprocess.list2cmdline(cmd_list)
+            )
+        )
+        out = subprocess.Popen(
+            cmd_list,
+            cwd=compiler_root,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            env=env,
+        )
+        return out
+
+    try:
+        print("Starting libfastled archive compilation...")
+        process = _open_process()
+        assert process.stdout is not None
+
+        # Create a new timestamper for this compilation attempt
+        timestamper = StreamingTimestamper()
+
+        # Process and print each line as it comes in with relative timestamp
+        line: str
+        for line in process.stdout:
+            timestamped_line = timestamper.timestamp_line(line)
+            print(timestamped_line)
+
+        process.wait()
+
+        print(banner("libfastled archive compilation finished."))
+
+        if process.returncode == 0:
+            print("\nlibfastled archive compilation successful.\n")
+            return 0
+        else:
+            raise subprocess.CalledProcessError(process.returncode, cmd_list)
+
+    except subprocess.CalledProcessError:
+        print(banner("libfastled archive compilation failed"))
+        return 1
+    except Exception as e:
+        print(f"Error during libfastled compilation: {e}")
+        return 1
+
+
 if __name__ == "__main__":
     sys.exit(main())

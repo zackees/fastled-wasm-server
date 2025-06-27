@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import time
@@ -343,48 +342,112 @@ async def compile_libfastled(
     async def stream_compilation() -> AsyncGenerator[bytes, None]:
         """Stream the compilation output line by line."""
         try:
-            # Set up environment with build mode
-            env = os.environ.copy()
+            # Import the compile function from our internal module
+            from fastled_wasm_server.compile import compile_libfastled
+            from fastled_wasm_server.types import BuildMode
+
+            # Convert build mode
             if build:
-                # Convert build mode to uppercase for consistency
-                build_mode = build.upper()
-                if build_mode not in ["QUICK", "DEBUG", "RELEASE"]:
-                    build_mode = "QUICK"  # Default fallback
-                env["BUILD_MODE"] = build_mode
-                yield f"data: Setting BUILD_MODE to {build_mode}\n".encode()
+                build_mode_str = build.upper()
+                if build_mode_str not in ["QUICK", "DEBUG", "RELEASE"]:
+                    build_mode_str = "QUICK"  # Default fallback
             else:
-                env["BUILD_MODE"] = "QUICK"  # Default
-                yield "data: Using default BUILD_MODE: QUICK\n".encode()
+                build_mode_str = "QUICK"  # Default
 
-            # Run the build_archive.sh script to compile libfastled
-            process = await asyncio.create_subprocess_exec(
-                "/bin/bash",
-                str(COMPILER_ROOT / "build_archive.sh"),
-                cwd=COMPILER_ROOT,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT,  # Combine stderr with stdout
-                env=env,  # Pass the environment with BUILD_MODE
-            )
+            # Convert to BuildMode enum
+            if build_mode_str == "DEBUG":
+                build_mode = BuildMode.DEBUG
+            elif build_mode_str == "RELEASE":
+                build_mode = BuildMode.RELEASE
+            else:
+                build_mode = BuildMode.QUICK
 
-            # Stream output line by line
-            assert process.stdout is not None
+            yield f"data: Using BUILD_MODE: {build_mode.name}\n".encode()
+
+            # Use the dedicated compile_libfastled function
+            yield "data: Starting libfastled compilation...\n".encode()
+
+            # Run the compilation in a thread to avoid blocking
+            import asyncio
+            import threading
+            from queue import Queue
+
+            output_queue = Queue()
+            exception_queue = Queue()
+
+            def run_compile():
+                try:
+                    # Capture stdout to stream it
+                    import sys
+
+                    # Create a custom stdout capture
+                    old_stdout = sys.stdout
+
+                    class TeeOutput:
+                        def write(self, text):
+                            old_stdout.write(text)
+                            old_stdout.flush()
+                            output_queue.put(text)
+
+                        def flush(self):
+                            old_stdout.flush()
+
+                    sys.stdout = TeeOutput()
+
+                    try:
+                        # Call the dedicated libfastled compile function
+                        result = compile_libfastled(
+                            compiler_root=COMPILER_ROOT, build_mode=build_mode
+                        )
+                        output_queue.put(f"COMPILATION_RESULT:{result}")
+                    finally:
+                        sys.stdout = old_stdout
+
+                except Exception as e:
+                    exception_queue.put(e)
+                finally:
+                    output_queue.put("COMPILATION_FINISHED")
+
+            # Start compilation in background thread
+            compile_thread = threading.Thread(target=run_compile)
+            compile_thread.start()
+
+            # Stream output as it comes in
             while True:
-                line = await process.stdout.readline()
-                if not line:
+                try:
+                    # Check for exceptions
+                    if not exception_queue.empty():
+                        exc = exception_queue.get_nowait()
+                        yield f"data: ERROR: {str(exc)}\n".encode()
+                        break
+
+                    # Get output with timeout
+                    try:
+                        output = output_queue.get(timeout=0.1)
+
+                        if output == "COMPILATION_FINISHED":
+                            break
+                        elif output.startswith("COMPILATION_RESULT:"):
+                            result = output.split(":", 1)[1]
+                            if result == "0":
+                                yield "data: COMPILATION_COMPLETE\ndata: EXIT_CODE: 0\ndata: STATUS: SUCCESS\n".encode()
+                            else:
+                                yield f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {result}\ndata: STATUS: FAIL\n".encode()
+                        else:
+                            # Stream the output line
+                            yield f"data: {output}".encode()
+
+                    except Exception:
+                        # Timeout - yield a heartbeat and continue
+                        await asyncio.sleep(0.1)
+                        continue
+
+                except Exception as e:
+                    yield f"data: ERROR: {str(e)}\n".encode()
                     break
-                decoded_line = line.decode("utf-8", errors="replace")
-                yield f"data: {decoded_line}".encode()
 
-            # Wait for process to complete and get return code
-            return_code = await process.wait()
-
-            # Send final status
-            if return_code == 0:
-                status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: SUCCESS\n"
-            else:
-                status_message = f"data: COMPILATION_COMPLETE\ndata: EXIT_CODE: {return_code}\ndata: STATUS: FAIL\n"
-
-            yield status_message.encode()
+            # Wait for thread to complete
+            compile_thread.join(timeout=5)
 
         except Exception as e:
             error_message = f"data: ERROR: {str(e)}\ndata: COMPILATION_COMPLETE\ndata: EXIT_CODE: -1\ndata: STATUS: FAIL\n"
