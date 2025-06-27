@@ -331,17 +331,31 @@ def compile_wasm(
 @app.post("/compile/libfastled")
 async def compile_libfastled(
     authorization: str = Header(None),
+    build: str = Header(None),
 ) -> StreamingResponse:
     """Compile libfastled library and stream the compilation output."""
 
     if not _TEST and authorization != _AUTH_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    print("Endpoint accessed: /compile/libfastled")
+    print(f"Endpoint accessed: /compile/libfastled with build: {build}")
 
     async def stream_compilation() -> AsyncGenerator[bytes, None]:
         """Stream the compilation output line by line."""
         try:
+            # Set up environment with build mode
+            env = os.environ.copy()
+            if build:
+                # Convert build mode to uppercase for consistency
+                build_mode = build.upper()
+                if build_mode not in ["QUICK", "DEBUG", "RELEASE"]:
+                    build_mode = "QUICK"  # Default fallback
+                env["BUILD_MODE"] = build_mode
+                yield f"data: Setting BUILD_MODE to {build_mode}\n".encode()
+            else:
+                env["BUILD_MODE"] = "QUICK"  # Default
+                yield "data: Using default BUILD_MODE: QUICK\n".encode()
+
             # Run the build_archive.sh script to compile libfastled
             process = await asyncio.create_subprocess_exec(
                 "/bin/bash",
@@ -349,6 +363,7 @@ async def compile_libfastled(
                 cwd=COMPILER_ROOT,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,  # Combine stderr with stdout
+                env=env,  # Pass the environment with BUILD_MODE
             )
 
             # Stream output line by line
