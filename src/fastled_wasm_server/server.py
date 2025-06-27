@@ -331,13 +331,16 @@ def compile_wasm(
 async def compile_libfastled(
     authorization: str = Header(None),
     build: str = Header(None),
+    dry_run: bool = Header(False),
 ) -> StreamingResponse:
     """Compile libfastled library and stream the compilation output."""
 
     if not _TEST and authorization != _AUTH_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    print(f"Endpoint accessed: /compile/libfastled with build: {build}")
+    print(
+        f"Endpoint accessed: /compile/libfastled with build: {build}, dry_run: {dry_run}"
+    )
 
     async def stream_compilation() -> AsyncGenerator[bytes, None]:
         """Stream the compilation output line by line."""
@@ -363,6 +366,8 @@ async def compile_libfastled(
                 build_mode = BuildMode.QUICK
 
             yield f"data: Using BUILD_MODE: {build_mode.name}\n".encode()
+            if dry_run:
+                yield "data: DRY RUN MODE: Will skip actual compilation\n".encode()
 
             # Use the dedicated compile_libfastled function
             yield "data: Starting libfastled compilation...\n".encode()
@@ -397,7 +402,9 @@ async def compile_libfastled(
                     try:
                         # Call the dedicated libfastled compile function
                         result = compile_libfastled(
-                            compiler_root=COMPILER_ROOT, build_mode=build_mode
+                            compiler_root=COMPILER_ROOT,
+                            build_mode=build_mode,
+                            dry_run=dry_run,
                         )
                         output_queue.put(f"COMPILATION_RESULT:{result}")
                     finally:

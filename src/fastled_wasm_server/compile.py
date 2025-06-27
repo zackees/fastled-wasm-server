@@ -582,15 +582,30 @@ def main() -> int:
     return run(args)
 
 
-def compile_libfastled(compiler_root: Path, build_mode: BuildMode) -> int:
+def compile_libfastled(
+    compiler_root: Path, build_mode: BuildMode, dry_run: bool
+) -> int:
     """
     Compile only the libfastled archive without any project dependencies.
     This function directly calls build_archive.sh to build libfastled.a.
+
+    Args:
+        compiler_root: Path to the compiler root directory
+        build_mode: Build mode (QUICK, DEBUG, RELEASE)
+        dry_run: If True, skip the actual compilation step
     """
     print("Starting libfastled archive compilation...")
     env = os.environ.copy()
     env["BUILD_MODE"] = build_mode.name
     print(banner(f"libfastled is building in mode: {build_mode.name}"))
+
+    if dry_run:
+        print(banner("DRY RUN MODE: Skipping actual compilation"))
+        print("Would execute build_archive.sh with BUILD_MODE=" + build_mode.name)
+        print(
+            banner("libfastled archive compilation (dry run) completed successfully.")
+        )
+        return 0
 
     # Call build_archive.sh directly - this only builds libfastled.a
     cmd_list = ["/bin/bash", str(compiler_root / "build_archive.sh")]
