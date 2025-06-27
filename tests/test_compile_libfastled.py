@@ -1,105 +1,138 @@
 """Tests for libfastled compilation functionality."""
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from fastled_wasm_server.compile import compile_libfastled
-from fastled_wasm_server.types import BuildMode
+from fastapi.testclient import TestClient
+
+# Import the FastAPI app
+from fastled_wasm_server.server import app
 
 
-class TestCompileLibfastled:
-    """Test the compile_libfastled function."""
+class TestCompileLibfastledEndpoint:
+    """Test the /compile/libfastled endpoint."""
 
-    def test_compile_libfastled_dry_run_quick(self, capsys):
-        """Test compile_libfastled with dry_run=True and QUICK mode."""
-        compiler_root = Path("/fake/compiler/root")
-        build_mode = BuildMode.QUICK
+    def setup_method(self):
+        """Set up test client."""
+        self.client = TestClient(app)
 
-        result = compile_libfastled(compiler_root, build_mode, dry_run=True)
+    @patch("fastled_wasm_server.server._NEW_COMPILER")
+    def test_compile_libfastled_dry_run_quick(self, mock_compiler):
+        """Test /compile/libfastled endpoint with dry_run=True and QUICK mode."""
+        # Mock the update_src method
+        mock_compiler.update_src.return_value = []
 
-        # Check return code
-        assert result == 0
-
-        # Check output
-        captured = capsys.readouterr()
-        assert "Starting libfastled archive compilation..." in captured.out
-        assert "libfastled is building in mode: QUICK" in captured.out
-        assert "DRY RUN MODE: Skipping actual compilation" in captured.out
-        assert "Would execute build_archive.sh with BUILD_MODE=QUICK" in captured.out
-        assert (
-            "libfastled archive compilation (dry run) completed successfully."
-            in captured.out
+        response = self.client.post(
+            "/compile/libfastled",
+            headers={
+                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",  # Use the actual auth token
+                "build": "quick",
+                "dry-run": "true",
+            },
         )
 
-    def test_compile_libfastled_dry_run_debug(self, capsys):
-        """Test compile_libfastled with dry_run=True and DEBUG mode."""
-        compiler_root = Path("/fake/compiler/root")
-        build_mode = BuildMode.DEBUG
+        # Check response status
+        assert response.status_code == 200
 
-        result = compile_libfastled(compiler_root, build_mode, dry_run=True)
+        # Check response content
+        content = response.text
+        assert "Using BUILD_MODE: QUICK" in content
+        assert "DRY RUN MODE: Will skip actual compilation" in content
+        assert "Would call _NEW_COMPILER.update_src(builds=['quick'])" in content
+        assert "STATUS: SUCCESS" in content
 
-        # Check return code
-        assert result == 0
+        # Verify update_src was not called for dry run
+        mock_compiler.update_src.assert_not_called()
 
-        # Check output
-        captured = capsys.readouterr()
-        assert "libfastled is building in mode: DEBUG" in captured.out
-        assert "Would execute build_archive.sh with BUILD_MODE=DEBUG" in captured.out
+    @patch("fastled_wasm_server.server._NEW_COMPILER")
+    def test_compile_libfastled_dry_run_debug(self, mock_compiler):
+        """Test /compile/libfastled endpoint with dry_run=True and DEBUG mode."""
+        response = self.client.post(
+            "/compile/libfastled",
+            headers={
+                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
+                "build": "debug",
+                "dry-run": "true",
+            },
+        )
 
-    def test_compile_libfastled_dry_run_release(self, capsys):
-        """Test compile_libfastled with dry_run=True and RELEASE mode."""
-        compiler_root = Path("/fake/compiler/root")
-        build_mode = BuildMode.RELEASE
+        assert response.status_code == 200
+        content = response.text
+        assert "Using BUILD_MODE: DEBUG" in content
+        assert "Would call _NEW_COMPILER.update_src(builds=['debug'])" in content
 
-        result = compile_libfastled(compiler_root, build_mode, dry_run=True)
+    @patch("fastled_wasm_server.server._NEW_COMPILER")
+    def test_compile_libfastled_dry_run_release(self, mock_compiler):
+        """Test /compile/libfastled endpoint with dry_run=True and RELEASE mode."""
+        response = self.client.post(
+            "/compile/libfastled",
+            headers={
+                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
+                "build": "release",
+                "dry-run": "true",
+            },
+        )
 
-        # Check return code
-        assert result == 0
+        assert response.status_code == 200
+        content = response.text
+        assert "Using BUILD_MODE: RELEASE" in content
+        assert "Would call _NEW_COMPILER.update_src(builds=['release'])" in content
 
-        # Check output
-        captured = capsys.readouterr()
-        assert "libfastled is building in mode: RELEASE" in captured.out
-        assert "Would execute build_archive.sh with BUILD_MODE=RELEASE" in captured.out
+    @patch("fastled_wasm_server.server._NEW_COMPILER")
+    def test_compile_libfastled_without_dry_run(self, mock_compiler):
+        """Test /compile/libfastled endpoint without dry_run (actual compilation)."""
+        # Mock successful compilation
+        mock_compiler.update_src.return_value = ["file1.cpp", "file2.h"]
 
-    @patch("subprocess.Popen")
-    def test_compile_libfastled_without_dry_run(self, mock_popen, capsys):
-        """Test that compile_libfastled without dry_run attempts to run subprocess."""
-        # Mock the subprocess
-        mock_process = MagicMock()
-        mock_process.stdout = iter(["test output line\n"])
-        mock_process.returncode = 0
-        mock_process.wait.return_value = None
-        mock_popen.return_value = mock_process
+        response = self.client.post(
+            "/compile/libfastled",
+            headers={
+                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
+                "build": "quick",
+                "dry-run": "false",
+            },
+        )
 
-        compiler_root = Path("/fake/compiler/root")
-        build_mode = BuildMode.QUICK
+        assert response.status_code == 200
+        content = response.text
+        assert "Starting libfastled compilation..." in content
+        assert "Successfully compiled libfastled. Files changed: 2" in content
+        assert "STATUS: SUCCESS" in content
 
-        result = compile_libfastled(compiler_root, build_mode, dry_run=False)
+        # Verify update_src was called
+        mock_compiler.update_src.assert_called_once()
 
-        # Check that subprocess was called
-        mock_popen.assert_called_once()
-        call_args = mock_popen.call_args
-        assert "/bin/bash" in call_args[0][0]
-        assert "build_archive.sh" in str(call_args[0][0])
+    @patch("fastled_wasm_server.server._NEW_COMPILER")
+    def test_compile_libfastled_default_dry_run_false(self, mock_compiler):
+        """Test that /compile/libfastled defaults to dry_run=False."""
+        mock_compiler.update_src.return_value = []
 
-        # Check return code
-        assert result == 0
+        response = self.client.post(
+            "/compile/libfastled",
+            headers={
+                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
+                "build": "quick",
+                # No dry-run header - should default to False
+            },
+        )
 
-    def test_compile_libfastled_default_dry_run_false(self, capsys):
-        """Test that compile_libfastled defaults to dry_run=False."""
-        with patch("subprocess.Popen") as mock_popen:
-            mock_process = MagicMock()
-            mock_process.stdout = iter(["test output\n"])
-            mock_process.returncode = 0
-            mock_process.wait.return_value = None
-            mock_popen.return_value = mock_process
+        assert response.status_code == 200
+        content = response.text
+        assert "Starting libfastled compilation..." in content
+        assert "libfastled compilation completed (no files changed)" in content
 
-            compiler_root = Path("/fake/compiler/root")
-            build_mode = BuildMode.QUICK
+        # Should call update_src (not dry run)
+        mock_compiler.update_src.assert_called_once()
 
-            # Call without dry_run parameter (should default to False)
-            result = compile_libfastled(compiler_root, build_mode, dry_run=False)
+    def test_compile_libfastled_unauthorized(self):
+        """Test /compile/libfastled endpoint without proper authorization."""
+        response = self.client.post(
+            "/compile/libfastled",
+            headers={
+                "authorization": "wrong_token",
+                "build": "quick",
+                "dry-run": "true",
+            },
+        )
 
-            # Should call subprocess (not dry run)
-            mock_popen.assert_called_once()
-            assert result == 0
+        assert response.status_code == 401
+        assert "Unauthorized" in response.json()["detail"]
