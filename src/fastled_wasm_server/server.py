@@ -4,7 +4,7 @@ import time
 import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from disklru import DiskLRUCache
 from fastapi import (
@@ -42,10 +42,12 @@ from fastled_wasm_server.server_fetch_example import (
     fetch_example,
 )
 from fastled_wasm_server.server_misc import start_memory_watchdog
+from fastled_wasm_server.session_manager import SessionManager
 from fastled_wasm_server.types import CompilerStats
 from fastled_wasm_server.upload_size_middleware import UploadSizeMiddleware
 
 _COMPILER_STATS = CompilerStats()
+_SESSION_MANAGER = SessionManager()
 
 _TEST = False
 _UPLOAD_LIMIT = 10 * 1024 * 1024
@@ -304,6 +306,7 @@ def compile_wasm(
     build: str = Header(None),
     profile: str = Header(None),
     strict: bool = Header(False),
+    session_id: Optional[int] = Header(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
@@ -311,8 +314,13 @@ def compile_wasm(
     if not _TEST and authorization != _AUTH_TOKEN:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    # Handle session management
+    session_info = _SESSION_MANAGER.get_session_info(session_id)
+    if session_id is None:
+        session_id = _SESSION_MANAGER.generate_session_id()
+
     print(
-        f"Endpoint accessed: /compile/wasm with file: {file.filename}, and build: {build}, profile: {profile}"
+        f"Endpoint accessed: /compile/wasm with file: {file.filename}, build: {build}, profile: {profile}, session: {session_info}"
     )
 
     file_response = _COMPILER.compile(
@@ -324,6 +332,10 @@ def compile_wasm(
         background_tasks=background_tasks,
         strict=strict,
     )
+
+    # Add session information to response headers
+    file_response.headers["X-Session-Id"] = str(session_id)
+    file_response.headers["X-Session-Info"] = session_info
     return file_response
 
 
