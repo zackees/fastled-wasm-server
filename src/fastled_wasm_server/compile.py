@@ -298,6 +298,7 @@ def parse_args() -> Args:
         "--no-platformio",
         action="store_true",
         help="Don't use platformio to compile the project, use the new system of direct emcc calls.",
+        default=None,  # Allow dynamic environment check
     )
     # Add mutually exclusive build mode group
     build_mode = parser.add_mutually_exclusive_group()
@@ -313,6 +314,12 @@ def parse_args() -> Args:
     )
 
     tmp = parser.parse_args()
+    # Check environment variable only if flag wasn't explicitly set
+    no_platformio = (
+        tmp.no_platformio
+        if tmp.no_platformio is not None
+        else os.getenv("NO_PLATFORMIO", "0") == "1"
+    )
     return Args(
         mapped_dir=tmp.mapped_dir,
         keep_files=tmp.keep_files,
@@ -321,7 +328,7 @@ def parse_args() -> Args:
         only_compile=tmp.only_compile,
         profile=tmp.profile,
         disable_auto_clean=tmp.disable_auto_clean,
-        no_platformio=tmp.no_platformio,
+        no_platformio=no_platformio,
         debug=tmp.debug,
         quick=tmp.quick,
         release=tmp.release,

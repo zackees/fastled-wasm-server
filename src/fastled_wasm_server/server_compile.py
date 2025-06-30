@@ -118,7 +118,7 @@ def _compile_source(
         only_compile=False,
         profile=profile,
         disable_auto_clean=False,
-        no_platformio=False,
+        no_platformio=os.getenv("NO_PLATFORMIO", "0") == "1",
         clear_ccache=False,
         debug=build_mode.lower() == "debug",
         quick=build_mode.lower() == "quick",
