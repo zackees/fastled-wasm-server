@@ -7,7 +7,7 @@ name = "fastled_wasm_server"
 readme = "README.md"
 description = "fastled wasm server"
 requires-python = ">=3.10"
-keywords = ["template-python-cmd"]
+keywords = ["fastled wasm server"]
 license = { text = "BSD 3-Clause License" }
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
