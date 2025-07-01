@@ -306,6 +306,7 @@ def compile_wasm(
     build: str = Header(None),
     profile: str = Header(None),
     strict: bool = Header(False),
+    no_platformio: Optional[bool] = Header(None),
     session_id: Optional[int] = Header(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> FileResponse:
