@@ -320,8 +320,12 @@ def compile_wasm(
     if session_id is None:
         session_id = _SESSION_MANAGER.generate_session_id()
 
+    # Handle no_platformio parameter with environment variable fallback
+    if no_platformio is None:
+        no_platformio = os.environ.get("NO_PLATFORMIO", "0") == "1"
+
     print(
-        f"Endpoint accessed: /compile/wasm with file: {file.filename}, build: {build}, profile: {profile}, session: {session_info}"
+        f"Endpoint accessed: /compile/wasm with file: {file.filename}, build: {build}, profile: {profile}, no_platformio: {no_platformio}, session: {session_info}"
     )
 
     file_response = _COMPILER.compile(
@@ -332,6 +336,7 @@ def compile_wasm(
         use_sketch_cache=not _NO_SKETCH_CACHE,
         background_tasks=background_tasks,
         strict=strict,
+        no_platformio=no_platformio,
     )
 
     # Add session information to response headers

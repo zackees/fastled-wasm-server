@@ -77,6 +77,7 @@ def _compile_source(
     stats: CompilerStats,
     strict: bool = False,
     hash_value: str | None = None,
+    no_platformio: bool = False,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
     epoch = time.time()
@@ -118,7 +119,7 @@ def _compile_source(
         only_compile=False,
         profile=profile,
         disable_auto_clean=False,
-        no_platformio=os.getenv("NO_PLATFORMIO", "0") == "1",
+        no_platformio=no_platformio,
         clear_ccache=False,
         debug=build_mode.lower() == "debug",
         quick=build_mode.lower() == "quick",
@@ -253,6 +254,7 @@ def server_compile(
     stats: CompilerStats,
     compiler_lock: threading.Lock,
     background_tasks: BackgroundTasks,
+    no_platformio: bool,
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
     if build is not None:
@@ -379,6 +381,7 @@ def server_compile(
             stats=stats,
             strict=strict,
             hash_value=hash_value,
+            no_platformio=no_platformio,
         )
         if isinstance(out, HTTPException):
             print("Raising HTTPException")
@@ -450,6 +453,7 @@ class ServerWasmCompiler:
         background_tasks: BackgroundTasks,
         use_sketch_cache: bool,
         strict: bool,
+        no_platformio: bool,
     ) -> FileResponse:
         return server_compile(
             compiler_root=self.compiler_root,
@@ -465,4 +469,5 @@ class ServerWasmCompiler:
             stats=self.stats,
             compiler_lock=self.compiler_lock,
             background_tasks=background_tasks,
+            no_platformio=no_platformio,
         )
