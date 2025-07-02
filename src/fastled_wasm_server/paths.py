@@ -10,9 +10,9 @@ def path_or_default(default: str, env_var: str) -> Path:
 
 FASTLED_EXAMPLES_DIR = Path("/git/fastled/examples")
 
-UPLOAD_DIR = path_or_default("/uploads", "ENV_UPLOAD_DIR")
+UPLOAD_DIR = path_or_default("/tmp/uploads", "ENV_UPLOAD_DIR")
 TEMP_DIR = path_or_default("/tmp", "ENV_TEMP_DIR")
-OUTPUT_DIR = path_or_default("/output", "ENV_OUTPUT_DIR")
+OUTPUT_DIR = path_or_default("/tmp/output", "ENV_OUTPUT_DIR")
 COMPILER_ROOT = path_or_default("/js", "ENV_COMPILER_ROOT")
 VOLUME_MAPPED_SRC = path_or_default("/host/fastled/src", "ENV_VOLUME_MAPPED_SRC")
 

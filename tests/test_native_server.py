@@ -52,7 +52,6 @@ class TestNativeServerMode(unittest.TestCase):
         response = self.client.post(
             "/compile/wasm",
             headers={
-                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
                 "native": "true",
             },
             files={"file": ("test.zip", zip_content, "application/zip")},
@@ -75,7 +74,6 @@ class TestNativeServerMode(unittest.TestCase):
         response = self.client.post(
             "/compile/wasm",
             headers={
-                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
                 "native": "false",
             },
             files={"file": ("test.zip", zip_content, "application/zip")},
@@ -96,9 +94,7 @@ class TestNativeServerMode(unittest.TestCase):
         # Test without native header
         response = self.client.post(
             "/compile/wasm",
-            headers={
-                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
-            },
+            headers={},
             files={"file": ("test.zip", zip_content, "application/zip")},
         )
 
@@ -122,9 +118,7 @@ class TestNativeServerMode(unittest.TestCase):
             # Test without native header (should use env var)
             response = self.client.post(
                 "/compile/wasm",
-                headers={
-                    "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
-                },
+                headers={},
                 files={"file": ("test.zip", zip_content, "application/zip")},
             )
 
@@ -152,13 +146,12 @@ class TestNativeServerMode(unittest.TestCase):
             "/compile/wasm",
             headers={
                 "native": "true",
-                # No authorization header
             },
             files={"file": ("test.zip", zip_content, "application/zip")},
         )
 
-        # Should be unauthorized
-        self.assertEqual(response.status_code, 401)
+        # Should no longer return unauthorized error
+        self.assertIn(response.status_code, [400, 500])
 
     def test_native_with_other_headers(self) -> None:
         """Test that native flag works with other compilation headers."""
@@ -171,7 +164,6 @@ class TestNativeServerMode(unittest.TestCase):
         response = self.client.post(
             "/compile/wasm",
             headers={
-                "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
                 "native": "true",
                 "build": "debug",
                 "profile": "false",

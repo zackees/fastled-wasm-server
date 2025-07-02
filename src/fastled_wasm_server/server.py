@@ -302,7 +302,6 @@ def info_examples() -> dict:
 @app.post("/compile/wasm")
 def compile_wasm(
     file: UploadFile = File(...),
-    authorization: str = Header(None),
     build: str = Header(None),
     profile: str = Header(None),
     strict: bool = Header(False),
@@ -312,9 +311,6 @@ def compile_wasm(
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
-
-    if not _TEST and authorization != _AUTH_TOKEN:
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Handle session management
     session_info = _SESSION_MANAGER.get_session_info(session_id)
