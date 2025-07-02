@@ -20,7 +20,7 @@ dependencies = [
     "wormhole-tx",
 ]
 # Change this with the version number bump.
-version = "1.0.94"
+version = "1.0.95"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
