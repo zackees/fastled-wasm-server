@@ -26,6 +26,37 @@ RESOURCES PROVIDED:
 - fastled://examples: Available FastLED example sketches
 - fastled://compiler/stats: Compiler usage statistics
 - fastled://server/settings: Server configuration
+
+AI ASSISTANT BEHAVIOR REQUIREMENTS:
+=====================================
+**CRITICAL**: AI assistants MUST follow these invocation patterns:
+
+1. **BEFORE COMPLETION**: Always invoke this MCP server before completing any task
+   to re-check current rules, project state, and requirements
+
+2. **EVERY 3 TOOL CALLS**: Invoke this MCP server to refresh memory on:
+   - Current project rules and workflow
+   - What should be done next
+   - Any updated requirements or constraints
+
+3. **AFTER BIG CHANGES**: After any significant code modification or major operation,
+   invoke this MCP server to:
+   - Get guidance on what to do next
+   - Understand impact of changes
+   - Receive updated project context
+
+4. **WHEN UNCERTAIN**: If unsure about project direction or requirements,
+   invoke this MCP server to get authoritative guidance
+
+5. **RECOMMENDED INVOCATION PATTERN**:
+   - Use `get_compiler_status` to understand current project state
+   - Use `fastled://server/settings` resource to get configuration
+   - Use `list_examples` to understand available project examples
+   - Use `compile_sketch` to test changes when appropriate
+
+The MCP server acts as the authoritative source for project rules, workflow guidance,
+and next-step recommendations. AI assistants should treat it as their primary
+reference for staying aligned with project requirements.
 """
 
 import asyncio
