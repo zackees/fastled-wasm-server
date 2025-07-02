@@ -20,7 +20,7 @@ from fastapi import (  # type: ignore
     UploadFile,
 )
 from fastapi.responses import FileResponse  # type: ignore
-from fastled_wasm_compiler.compiler import Compiler  # type: ignore
+from fastled_wasm_compiler.compiler import CompilerImpl as Compiler  # type: ignore
 from fastled_wasm_compiler.run_compile import Args
 from fastled_wasm_compiler.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
@@ -78,6 +78,7 @@ def _compile_source(
     strict: bool = False,
     hash_value: str | None = None,
     no_platformio: bool = False,
+    native: bool = False,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
     epoch = time.time()
@@ -109,6 +110,11 @@ def _compile_source(
     keep_files = (
         build_mode.lower() == "debug"
     )  # Keep files so they can be source mapped during debug.
+
+    # If native is True, automatically set no_platformio to True
+    if native:
+        no_platformio = True
+
     args: Args = Args(
         compiler_root=compiler_root,
         assets_dirs=FASTLED_COMPILER_DIR,
@@ -255,6 +261,7 @@ def server_compile(
     compiler_lock: threading.Lock,
     background_tasks: BackgroundTasks,
     no_platformio: bool,
+    native: bool,
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
     if build is not None:
@@ -382,6 +389,7 @@ def server_compile(
             strict=strict,
             hash_value=hash_value,
             no_platformio=no_platformio,
+            native=native,
         )
         if isinstance(out, HTTPException):
             print("Raising HTTPException")
@@ -454,6 +462,7 @@ class ServerWasmCompiler:
         use_sketch_cache: bool,
         strict: bool,
         no_platformio: bool,
+        native: bool,
     ) -> FileResponse:
         return server_compile(
             compiler_root=self.compiler_root,
@@ -470,4 +479,5 @@ class ServerWasmCompiler:
             compiler_lock=self.compiler_lock,
             background_tasks=background_tasks,
             no_platformio=no_platformio,
+            native=native,
         )

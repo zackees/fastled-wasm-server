@@ -37,7 +37,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from disklru import DiskLRUCache  # type: ignore
-from fastled_wasm_compiler import Compiler
+from fastled_wasm_compiler.compiler import CompilerImpl as Compiler
 
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
 from fastled_wasm_server.examples import EXAMPLES
