@@ -18,6 +18,7 @@ dependencies = [
     "disklru>=2.0.4",
     "psutil==6.1.1",
     "wormhole-tx",
+    "httpx>=0.25.0",
 ]
 # Change this with the version number bump.
 version = "1.0.95"
@@ -49,12 +50,17 @@ profile = "black"
 ignore_missing_imports = true
 disable_error_code = ["import-untyped"]
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
 [dependency-groups]
 dev = [
     "black>=25.1.0",
     "isort>=6.0.1",
     "pyright>=1.1.402",
     "pytest>=8.4.1",
+    "pytest-asyncio>=0.23.0",
     "pytest-xdist>=3.7.0",
     "ruff>=0.12.0",
 ]
