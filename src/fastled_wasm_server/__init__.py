@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import AsyncGenerator, Awaitable, Dict, Optional, Union
 
 from .api_client import (
+    Client,
+    ClientAsync,
     CompilerInUseResponse,
     DwarfSourceRequest,
-    FastLEDWasmClient,
-    FastLEDWasmSyncClient,
     HealthResponse,
     ServerInfo,
     ServerSettings,
@@ -48,14 +48,14 @@ class FastLEDWasmAPI:
 
         # Dynamically load the appropriate client implementation
         if use_async:
-            self._client = FastLEDWasmClient(
+            self._client = ClientAsync(
                 base_url=base_url,
                 auth_token=auth_token,
                 timeout=timeout,
                 **httpx_kwargs,
             )
         else:
-            self._client = FastLEDWasmSyncClient(
+            self._client = Client(
                 base_url, auth_token=auth_token, timeout=timeout, **httpx_kwargs
             )
 
@@ -245,8 +245,8 @@ class FastLEDWasmAPI:
 
 __all__ = [
     "FastLEDWasmAPI",
-    "FastLEDWasmClient",
-    "FastLEDWasmSyncClient",
+    "Client",
+    "ClientAsync",
     "ServerSettings",
     "ServerInfo",
     "CompilerInUseResponse",
