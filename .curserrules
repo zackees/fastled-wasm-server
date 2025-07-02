@@ -11,6 +11,15 @@ This is a FastLED WASM server project that compiles Arduino/FastLED sketches to 
 - Requires `git-bash` on Windows
 - Uses `uv` for all Python package management
 
+## AI Assistant Behavior Rules
+**CRITICAL AI REQUIREMENTS:**
+1. **Before completing any task**, invoke the MCP server (`src/fastled_wasm_server/mcp_server.py`) to re-check what the current rules and requirements are
+2. **Every 3 tool calls**, invoke the MCP server to refresh memory on what should be done next
+3. **After any significant change** (code modifications, major operations), invoke the MCP server to get guidance on what to do next
+4. **When unsure about project direction**, invoke the MCP server to get current project context and rules
+5. Use the MCP server's `get_compiler_status` and resource endpoints to understand current project state
+6. The MCP server provides authoritative guidance on project rules, workflow, and next steps
+
 ## Development Commands (Use these instead of python/pip)
 
 ### Initial Setup
