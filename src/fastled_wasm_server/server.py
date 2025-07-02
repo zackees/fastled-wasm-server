@@ -22,7 +22,7 @@ from fastapi.responses import (
     Response,
     StreamingResponse,
 )
-from fastled_wasm_compiler.compiler import CompilerImpl as Compiler
+from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
 )
