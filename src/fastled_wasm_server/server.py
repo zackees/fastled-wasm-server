@@ -307,6 +307,7 @@ def compile_wasm(
     profile: str = Header(None),
     strict: bool = Header(False),
     no_platformio: Optional[bool] = Header(None),
+    native: Optional[bool] = Header(None),
     session_id: Optional[int] = Header(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ) -> FileResponse:
@@ -320,12 +321,20 @@ def compile_wasm(
     if session_id is None:
         session_id = _SESSION_MANAGER.generate_session_id()
 
+    # Handle native parameter with environment variable fallback
+    if native is None:
+        native = os.environ.get("NATIVE", "0") == "1"
+    
     # Handle no_platformio parameter with environment variable fallback
     if no_platformio is None:
         no_platformio = os.environ.get("NO_PLATFORMIO", "0") == "1"
+    
+    # If native is True, automatically set no_platformio to True
+    if native:
+        no_platformio = True
 
     print(
-        f"Endpoint accessed: /compile/wasm with file: {file.filename}, build: {build}, profile: {profile}, no_platformio: {no_platformio}, session: {session_info}"
+        f"Endpoint accessed: /compile/wasm with file: {file.filename}, build: {build}, profile: {profile}, no_platformio: {no_platformio}, native: {native}, session: {session_info}"
     )
 
     file_response = _COMPILER.compile(
@@ -337,6 +346,7 @@ def compile_wasm(
         background_tasks=background_tasks,
         strict=strict,
         no_platformio=no_platformio,
+        native=native,
     )
 
     # Add session information to response headers

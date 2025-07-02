@@ -240,6 +240,7 @@ class Args:
     profile: bool
     disable_auto_clean: bool
     no_platformio: bool
+    native: bool
     debug: bool
     quick: bool
     release: bool
@@ -253,9 +254,14 @@ class Args:
         assert isinstance(self.profile, bool)
         assert isinstance(self.disable_auto_clean, bool)
         assert isinstance(self.no_platformio, bool)
+        assert isinstance(self.native, bool)
         assert isinstance(self.debug, bool)
         assert isinstance(self.quick, bool)
         assert isinstance(self.release, bool)
+        
+        # If native is True, automatically set no_platformio to True
+        if self.native:
+            self.no_platformio = True
 
 
 def parse_args() -> Args:
@@ -300,6 +306,12 @@ def parse_args() -> Args:
         help="Don't use platformio to compile the project, use the new system of direct emcc calls.",
         default=None,  # Allow dynamic environment check
     )
+    parser.add_argument(
+        "--native",
+        action="store_true",
+        help="Use native build system (automatically implies --no-platformio).",
+        default=False,
+    )
     # Add mutually exclusive build mode group
     build_mode = parser.add_mutually_exclusive_group()
     build_mode.add_argument("--debug", action="store_true", help="Build in debug mode")
@@ -329,6 +341,7 @@ def parse_args() -> Args:
         profile=tmp.profile,
         disable_auto_clean=tmp.disable_auto_clean,
         no_platformio=no_platformio,
+        native=tmp.native,
         debug=tmp.debug,
         quick=tmp.quick,
         release=tmp.release,
