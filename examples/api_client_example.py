@@ -9,14 +9,14 @@ of the API client to interact with a FastLED WASM server.
 import asyncio
 from pathlib import Path
 
-from fastled_wasm_server.api_client import FastLEDWasmClient, FastLEDWasmSyncClient
+from fastled_wasm_server.api_client import Client, ClientAsync
 
 
 async def async_example():
     """Example using the async API client."""
     server_url = "http://localhost:8080"  # Replace with your server URL
     
-    async with FastLEDWasmClient(server_url) as client:
+    async with ClientAsync(server_url) as client:
         # Health check
         print("=== Health Check ===")
         health = await client.health_check()
@@ -91,27 +91,26 @@ def sync_example():
     """Example using the synchronous API client."""
     server_url = "http://localhost:8080"  # Replace with your server URL
     
-    client = FastLEDWasmSyncClient(server_url)
-    
-    try:
-        # Health check
-        print("=== Sync Health Check ===")
-        health = client.health_check()
-        print(f"Server status: {health.status}")
-        
-        # Get server info
-        print("\n=== Sync Server Info ===")
-        info = client.get_info()
-        print(f"Available examples: {info.examples}")
-        print(f"Compile count: {info.compile_count}")
-        
-        # Check compiler status
-        print("\n=== Sync Compiler Status ===")
-        compiler_status = client.is_compiler_in_use()
-        print(f"Compiler in use: {compiler_status.in_use}")
-        
-    except Exception as e:
-        print(f"Sync client error: {e}")
+    with Client(server_url) as client:
+        try:
+            # Health check
+            print("=== Sync Health Check ===")
+            health = client.health_check()
+            print(f"Server status: {health.status}")
+            
+            # Get server info
+            print("\n=== Sync Server Info ===")
+            info = client.get_info()
+            print(f"Available examples: {info.examples}")
+            print(f"Compile count: {info.compile_count}")
+            
+            # Check compiler status
+            print("\n=== Sync Compiler Status ===")
+            compiler_status = client.is_compiler_in_use()
+            print(f"Compiler in use: {compiler_status.in_use}")
+            
+        except Exception as e:
+            print(f"Sync client error: {e}")
 
 
 def compile_from_content_example():
@@ -142,7 +141,7 @@ void loop() {
 }
 """.encode('utf-8')
         
-        async with FastLEDWasmClient(server_url) as client:
+        async with ClientAsync(server_url) as client:
             try:
                 result = await client.compile_wasm_with_file_content(
                     file_content=sketch_content,

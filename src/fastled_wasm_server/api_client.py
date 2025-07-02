@@ -626,6 +626,3 @@ class ClientAsync:
         return response.content
 
 
-# Legacy compatibility aliases
-FastLEDWasmClient = ClientAsync  # Keep the old async class name for compatibility
-FastLEDWasmSyncClient = Client   # Keep the old sync class name for compatibility

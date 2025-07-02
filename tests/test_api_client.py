@@ -8,8 +8,6 @@ from fastled_wasm_server.api_client import (
     Client,
     ClientAsync,
     CompilerInUseResponse,
-    FastLEDWasmClient,
-    FastLEDWasmSyncClient,
     HealthResponse,
     ServerInfo,
     ServerSettings,
@@ -22,7 +20,7 @@ class TestFastLEDWasmClient:
     @pytest.fixture
     def client(self):
         """Create a test client."""
-        return FastLEDWasmClient("http://localhost:8080")
+        return ClientAsync("http://localhost:8080")
 
     @pytest.mark.asyncio
     async def test_health_check(self, client):
@@ -200,9 +198,9 @@ class TestFastLEDWasmClient:
     @pytest.mark.asyncio
     async def test_context_manager(self):
         """Test async context manager functionality."""
-        async with FastLEDWasmClient("http://localhost:8080") as client:
+        async with ClientAsync("http://localhost:8080") as client:
             assert client is not None
-            assert isinstance(client, FastLEDWasmClient)
+            assert isinstance(client, ClientAsync)
 
 
 class TestFastLEDWasmSyncClient:
@@ -210,14 +208,14 @@ class TestFastLEDWasmSyncClient:
 
     def test_init(self):
         """Test synchronous client initialization."""
-        client = FastLEDWasmSyncClient("http://localhost:8080", auth_token="test_token")
+        client = Client("http://localhost:8080", auth_token="test_token")
         # New implementation doesn't store these as separate attributes
         assert client.base_url == "http://localhost:8080"
         assert client.auth_token == "test_token"
 
     def test_health_check_sync(self):
         """Test synchronous health check."""
-        client = FastLEDWasmSyncClient("http://localhost:8080")
+        client = Client("http://localhost:8080")
         
         # Mock the underlying HTTP client
         mock_response = Mock()
@@ -271,13 +269,13 @@ class TestAPIClientIntegration:
     def test_client_initialization_with_different_options(self):
         """Test client initialization with various options."""
         # Test async client with minimal options
-        client1 = FastLEDWasmClient("http://localhost:8080")
+        client1 = ClientAsync("http://localhost:8080")
         assert client1.base_url == "http://localhost:8080"
         assert client1.auth_token == "oBOT5jbsO4ztgrpNsQwlmFLIKB"
         assert client1.timeout == 30.0
 
         # Test async client with custom options
-        client2 = FastLEDWasmClient(
+        client2 = ClientAsync(
             "http://example.com:9000/", auth_token="custom_token", timeout=60.0
         )
         assert client2.base_url == "http://example.com:9000"
@@ -285,7 +283,7 @@ class TestAPIClientIntegration:
         assert client2.timeout == 60.0
 
         # Test sync client
-        sync_client = FastLEDWasmSyncClient("http://localhost:8080", timeout=45.0)
+        sync_client = Client("http://localhost:8080", timeout=45.0)
         assert sync_client.timeout == 45.0
 
     def test_response_models_creation(self):
@@ -322,10 +320,4 @@ class TestAPIClientIntegration:
         assert info.examples == ["example1"]
         assert info.compile_count == 10
 
-    def test_legacy_aliases(self):
-        """Test that legacy class names still work."""
-        # FastLEDWasmClient should be an alias for ClientAsync
-        assert FastLEDWasmClient is ClientAsync
-        
-        # FastLEDWasmSyncClient should be an alias for Client
-        assert FastLEDWasmSyncClient is Client
+
