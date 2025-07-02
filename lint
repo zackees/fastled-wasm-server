@@ -5,11 +5,13 @@ echo Running ruff src
 uv run ruff check --fix src
 echo Running ruff tests
 uv run ruff check --fix tests
-echo Running black src tests
-uv run black src tests
-echo Running isort src tests
-uv run isort --profile black src tests
-echo Running pyright src tests
-uv run pyright src tests
+echo Running ruff mcp_server.py
+uv run ruff check --fix mcp_server.py
+echo Running black src tests mcp_server.py
+uv run black src tests mcp_server.py
+echo Running isort src tests mcp_server.py
+uv run isort --profile black src tests mcp_server.py
+echo Running pyright src tests mcp_server.py
+uv run pyright src tests mcp_server.py
 echo Linting complete!
 exit 0

@@ -17,8 +17,16 @@ def main() -> None:
     print("=" * 50)
 
     try:
-        from fastled_wasm_server.mcp_server import MCP_AVAILABLE
-        from fastled_wasm_server.mcp_server import main as mcp_main
+        # Import from the root-level mcp_server module
+        import sys
+        from pathlib import Path
+        
+        # Add the project root to the path to import mcp_server
+        project_root = Path(__file__).parent.parent.parent
+        sys.path.insert(0, str(project_root))
+        
+        from mcp_server import MCP_AVAILABLE
+        from mcp_server import main as mcp_main
 
         if not MCP_AVAILABLE:
             print("ERROR: MCP package not installed.")
