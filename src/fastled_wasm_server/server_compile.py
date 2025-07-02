@@ -110,11 +110,11 @@ def _compile_source(
     keep_files = (
         build_mode.lower() == "debug"
     )  # Keep files so they can be source mapped during debug.
-    
+
     # If native is True, automatically set no_platformio to True
     if native:
         no_platformio = True
-    
+
     args: Args = Args(
         compiler_root=compiler_root,
         assets_dirs=FASTLED_COMPILER_DIR,

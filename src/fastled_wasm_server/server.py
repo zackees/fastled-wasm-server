@@ -324,11 +324,11 @@ def compile_wasm(
     # Handle native parameter with environment variable fallback
     if native is None:
         native = os.environ.get("NATIVE", "0") == "1"
-    
+
     # Handle no_platformio parameter with environment variable fallback
     if no_platformio is None:
         no_platformio = os.environ.get("NO_PLATFORMIO", "0") == "1"
-    
+
     # If native is True, automatically set no_platformio to True
     if native:
         no_platformio = True

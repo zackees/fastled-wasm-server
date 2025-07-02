@@ -258,7 +258,7 @@ class Args:
         assert isinstance(self.debug, bool)
         assert isinstance(self.quick, bool)
         assert isinstance(self.release, bool)
-        
+
         # If native is True, automatically set no_platformio to True
         if self.native:
             self.no_platformio = True
