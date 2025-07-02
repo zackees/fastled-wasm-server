@@ -13,12 +13,19 @@ This is a FastLED WASM server project that compiles Arduino/FastLED sketches to 
 
 ## AI Assistant Behavior Rules
 **CRITICAL AI REQUIREMENTS:**
-1. **Before completing any task**, invoke the MCP server (`src/fastled_wasm_server/mcp_server.py`) to re-check what the current rules and requirements are
+1. **Before completing any task**, invoke the MCP server (`mcp_server.py` in project root) to re-check what the current rules and requirements are
 2. **Every 3 tool calls**, invoke the MCP server to refresh memory on what should be done next
 3. **After any significant change** (code modifications, major operations), invoke the MCP server to get guidance on what to do next
 4. **When unsure about project direction**, invoke the MCP server to get current project context and rules
 5. Use the MCP server's `get_compiler_status` and resource endpoints to understand current project state
 6. The MCP server provides authoritative guidance on project rules, workflow, and next steps
+
+### MCP Server Usage
+```bash
+uv run python mcp_server.py           # Run MCP server directly from project root
+uv run fastled-wasm-mcp-server        # Run via project script
+uv run python -m fastled_wasm_server.cli_mcp  # Run via CLI module
+```
 
 ## Development Commands (Use these instead of python/pip)
 
@@ -100,8 +107,9 @@ uv run uvicorn fastled_wasm_server.server:app --host 0.0.0.0 --port 80
 
 ## Key Rules
 1. **NEVER use python/python3/pip directly** - always use `uv run` or `uv` commands
-2. Run `./install` first for project setup
-3. Use `./test` for running tests (not pytest directly)
-4. Use `./lint` for linting (not individual tools directly)
-5. This project requires the niteris/fastled-wasm container environment
-6. On Windows, use git-bash shell
+2. **NEVER manually manipulate sys.path** - use `uv run` for proper module path handling
+3. Run `./install` first for project setup
+4. Use `./test` for running tests (not pytest directly)
+5. Use `./lint` for linting (not individual tools directly)
+6. This project requires the niteris/fastled-wasm container environment
+7. On Windows, use git-bash shell

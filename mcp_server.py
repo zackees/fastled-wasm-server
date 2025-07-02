@@ -14,7 +14,8 @@ fetch examples, and manage server settings.
 
 SETUP INSTRUCTIONS:
 1. Install MCP dependency: uv add mcp
-2. Run the server: uv run python mcp_server.py
+2. Run the server: uv run python mcp_server.py (from project root)
+   Or via CLI: uv run fastled-wasm-mcp-server
 
 TOOLS PROVIDED:
 - compile_sketch: Compile Arduino/FastLED sketches to WASM

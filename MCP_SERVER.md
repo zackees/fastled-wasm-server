@@ -32,23 +32,24 @@ uv add mcp
 
 ### 3. Run the MCP Server
 
-Start the MCP server:
+Start the MCP server using any of these methods:
 
+**Option 1 - Using the project script:**
 ```bash
 uv run fastled-wasm-mcp-server
 ```
 
-Or run directly from the project root:
-
+**Option 2 - Run directly from the project root:**
 ```bash
 uv run python mcp_server.py
 ```
 
-Or via the CLI module:
-
+**Option 3 - Via the CLI module:**
 ```bash
 uv run python -m fastled_wasm_server.cli_mcp
 ```
+
+**Note:** All methods require running with `uv run` to ensure proper dependency resolution and module path handling.
 
 ## Tools Provided
 
