@@ -20,7 +20,7 @@ from fastapi import (  # type: ignore
     UploadFile,
 )
 from fastapi.responses import FileResponse  # type: ignore
-from fastled_wasm_compiler.compiler import CompilerImpl as Compiler  # type: ignore
+from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.run_compile import Args
 from fastled_wasm_compiler.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
