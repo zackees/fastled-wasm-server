@@ -32,17 +32,24 @@ uv add mcp
 
 ### 3. Run the MCP Server
 
-Start the MCP server:
+Start the MCP server using any of these methods:
 
+**Option 1 - Using the project script:**
 ```bash
 uv run fastled-wasm-mcp-server
 ```
 
-Or run directly:
+**Option 2 - Run directly from the project root:**
+```bash
+uv run python mcp_server.py
+```
 
+**Option 3 - Via the CLI module:**
 ```bash
 uv run python -m fastled_wasm_server.cli_mcp
 ```
+
+**Note:** All methods require running with `uv run` to ensure proper dependency resolution and module path handling.
 
 ## Tools Provided
 
@@ -107,7 +114,7 @@ Returns server configuration information including:
 
 ### Project Structure
 
-- `src/fastled_wasm_server/mcp_server.py` - Main MCP server implementation
+- `mcp_server.py` - Main MCP server implementation (in project root)
 - `src/fastled_wasm_server/cli_mcp.py` - CLI entry point
 - The MCP server reuses the existing FastLED WASM compiler infrastructure
 

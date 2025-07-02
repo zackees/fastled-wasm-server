@@ -67,3 +67,4 @@ dev = [
 
 [project.scripts]
 fastled-wasm-server = "fastled_wasm_server.cli_compile:main"
+fastled-wasm-mcp-server = "fastled_wasm_server.cli_mcp:main"

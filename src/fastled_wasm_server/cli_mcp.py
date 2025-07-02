@@ -17,8 +17,9 @@ def main() -> None:
     print("=" * 50)
 
     try:
-        from fastled_wasm_server.mcp_server import MCP_AVAILABLE
-        from fastled_wasm_server.mcp_server import main as mcp_main
+        # Import from the fastled_wasm_server.mcp_server module
+        from .mcp_server import MCP_AVAILABLE
+        from .mcp_server import main as mcp_main
 
         if not MCP_AVAILABLE:
             print("ERROR: MCP package not installed.")
