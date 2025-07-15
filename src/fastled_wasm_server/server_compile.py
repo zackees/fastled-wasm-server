@@ -262,6 +262,7 @@ def server_compile(
     background_tasks: BackgroundTasks,
     no_platformio: bool,
     native: bool,
+    allow_libcompile: bool,
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
     if build is not None:
@@ -331,7 +332,7 @@ def server_compile(
                     f"Error generating hash: {e}, fast cache access is disabled for this build."
                 )
 
-        if VOLUME_MAPPED_SRC.exists():
+        if allow_libcompile and VOLUME_MAPPED_SRC.exists():
             builds = [build]
             files_changed = compiler.update_src(
                 builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
@@ -463,6 +464,7 @@ class ServerWasmCompiler:
         strict: bool,
         no_platformio: bool,
         native: bool,
+        allow_libcompile: bool,
     ) -> FileResponse:
         return server_compile(
             compiler_root=self.compiler_root,
@@ -480,4 +482,5 @@ class ServerWasmCompiler:
             background_tasks=background_tasks,
             no_platformio=no_platformio,
             native=native,
+            allow_libcompile=allow_libcompile,
         )

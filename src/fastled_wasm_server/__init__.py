@@ -158,6 +158,7 @@ class FastLEDWasmAPI:
         no_platformio: Optional[bool] = None,
         native: Optional[bool] = None,
         session_id: Optional[int] = None,
+        allow_libcompile: bool = True,
     ) -> Union[bytes, Awaitable[bytes]]:
         """
         Compile a WASM file.
@@ -175,7 +176,14 @@ class FastLEDWasmAPI:
             bytes or Awaitable[bytes]: Compiled WASM file content
         """
         return self._client.compile_wasm(
-            file_path, build, profile, strict, no_platformio, native, session_id
+            file_path,
+            build,
+            profile,
+            strict,
+            no_platformio,
+            native,
+            session_id,
+            allow_libcompile=allow_libcompile,
         )
 
     def compile_wasm_with_file_content(

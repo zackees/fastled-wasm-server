@@ -305,6 +305,7 @@ def compile_wasm(
     build: str = Header(None),
     profile: str = Header(None),
     strict: bool = Header(False),
+    allow_libcompile: bool = Header(True),
     no_platformio: Optional[bool] = Header(None),
     native: Optional[bool] = Header(None),
     session_id: Optional[int] = Header(None),
@@ -343,6 +344,7 @@ def compile_wasm(
         strict=strict,
         no_platformio=no_platformio,
         native=native,
+        allow_libcompile=allow_libcompile,
     )
 
     # Add session information to response headers

@@ -218,6 +218,7 @@ class Client:
         no_platformio: Optional[bool] = None,
         native: Optional[bool] = None,
         session_id: Optional[int] = None,
+        allow_libcompile: bool = True,
     ) -> bytes:
         """
         Compile a WASM file.
@@ -249,6 +250,10 @@ class Client:
             headers["native"] = "true" if native else "false"
         if session_id is not None:
             headers["session_id"] = str(session_id)
+        if allow_libcompile:
+            headers["allow_libcompile"] = "true"
+        else:
+            headers["allow_libcompile"] = "false"
 
         # Prepare file upload
         file_path = Path(file_path)
@@ -300,6 +305,7 @@ class Client:
         no_platformio: Optional[bool] = None,
         native: Optional[bool] = None,
         session_id: Optional[int] = None,
+        allow_libcompile: bool = True,
     ) -> bytes:
         """
         Compile WASM from file content (without saving to disk).
@@ -332,6 +338,10 @@ class Client:
             headers["native"] = "true" if native else "false"
         if session_id is not None:
             headers["session_id"] = str(session_id)
+        if allow_libcompile:
+            headers["allow_libcompile"] = "true"
+        else:
+            headers["allow_libcompile"] = "false"
 
         # Prepare file upload
         files = {"file": (filename, file_content, "application/octet-stream")}
@@ -494,6 +504,7 @@ class ClientAsync:
         no_platformio: Optional[bool] = None,
         native: Optional[bool] = None,
         session_id: Optional[int] = None,
+        allow_libcompile: bool = True,
     ) -> bytes:
         """
         Compile a WASM file.
@@ -525,6 +536,10 @@ class ClientAsync:
             headers["native"] = "true" if native else "false"
         if session_id is not None:
             headers["session_id"] = str(session_id)
+        if allow_libcompile:
+            headers["allow_libcompile"] = "true"
+        else:
+            headers["allow_libcompile"] = "false"
 
         # Prepare file upload
         file_path = Path(file_path)
@@ -578,6 +593,7 @@ class ClientAsync:
         no_platformio: Optional[bool] = None,
         native: Optional[bool] = None,
         session_id: Optional[int] = None,
+        allow_libcompile: bool = True,
     ) -> bytes:
         """
         Compile WASM from file content (without saving to disk).
@@ -610,6 +626,10 @@ class ClientAsync:
             headers["native"] = "true" if native else "false"
         if session_id is not None:
             headers["session_id"] = str(session_id)
+        if allow_libcompile:
+            headers["allow_libcompile"] = "true"
+        else:
+            headers["allow_libcompile"] = "false"
 
         # Prepare file upload
         files = {"file": (filename, file_content, "application/octet-stream")}
