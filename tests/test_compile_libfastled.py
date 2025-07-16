@@ -37,6 +37,7 @@ class TestCompileLibfastledEndpoint:
             assert "DRY RUN MODE: Will skip actual compilation" in content
             assert "Would compile libfastled with BUILD_MODE=QUICK" in content
             assert "STATUS: SUCCESS" in content
+            assert "HTTP_STATUS: 200" in content
 
     def test_compile_libfastled_dry_run_debug(self):
         """Test /compile/libfastled endpoint with dry_run=True and DEBUG mode."""
@@ -56,7 +57,10 @@ class TestCompileLibfastledEndpoint:
                 content += chunk
 
             assert "Using BUILD_MODE: DEBUG" in content
+            assert "DRY RUN MODE: Will skip actual compilation" in content
             assert "Would compile libfastled with BUILD_MODE=DEBUG" in content
+            assert "STATUS: SUCCESS" in content
+            assert "HTTP_STATUS: 200" in content
 
     def test_compile_libfastled_dry_run_release(self):
         """Test /compile/libfastled endpoint with dry_run=True and RELEASE mode."""
@@ -76,55 +80,40 @@ class TestCompileLibfastledEndpoint:
                 content += chunk
 
             assert "Using BUILD_MODE: RELEASE" in content
+            assert "DRY RUN MODE: Will skip actual compilation" in content
             assert "Would compile libfastled with BUILD_MODE=RELEASE" in content
+            assert "STATUS: SUCCESS" in content
+            assert "HTTP_STATUS: 200" in content
 
     def test_compile_libfastled_without_dry_run(self):
-        """Test /compile/libfastled endpoint without dry_run (shows environment error)."""
-        with self.client.stream(
-            "POST",
+        """Test /compile/libfastled endpoint without dry_run (returns immediate 400 error)."""
+        response = self.client.post(
             "/compile/libfastled",
             headers={
                 "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
                 "build": "quick",
                 "dry-run": "false",  # Use hyphen instead of underscore
             },
-        ) as response:
-            assert response.status_code == 200
-
-            content = ""
-            for chunk in response.iter_text():
-                content += chunk
-
-            assert "Starting libfastled compilation..." in content
-            assert (
-                "ERROR: libfastled compilation requires a properly configured environment"
-                in content
-            )
-            assert "STATUS: FAIL" in content
+        )
+        # Now correctly returns 400 immediately due to missing environment
+        assert response.status_code == 400
+        assert "Volume mapped source directory does not exist" in response.text
+        assert "properly configured environment" in response.text
 
     def test_compile_libfastled_default_dry_run_false(self):
-        """Test that /compile/libfastled defaults to dry_run=False."""
-        with self.client.stream(
-            "POST",
+        """Test that /compile/libfastled defaults to dry_run=False (returns immediate 400 error)."""
+        response = self.client.post(
             "/compile/libfastled",
             headers={
                 "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
                 "build": "quick",
                 # No dry-run header - should default to False
             },
-        ) as response:
-            assert response.status_code == 200
-
-            content = ""
-            for chunk in response.iter_text():
-                content += chunk
-
-            assert "Starting libfastled compilation..." in content
-            assert (
-                "ERROR: libfastled compilation requires a properly configured environment"
-                in content
-            )
-            assert "STATUS: FAIL" in content
+        )
+        # Now correctly returns 400 immediately due to missing environment
+        assert response.status_code == 400
+        assert "Volume mapped source directory does not exist" in response.text
+        assert "properly configured environment" in response.text
 
     def test_compile_libfastled_unauthorized(self):
         """Test /compile/libfastled endpoint without proper authorization."""

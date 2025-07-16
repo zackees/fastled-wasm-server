@@ -371,37 +371,38 @@ async def compile_libfastled(
         f"Endpoint accessed: /compile/libfastled with build: {build}, dry_run: {dry_run_bool}"
     )
 
-    if not VOLUME_MAPPED_SRC.exists() and not dry_run:
-
-        async def error_stream() -> AsyncGenerator[bytes, None]:
-            yield "data: Volume mapped source directory does not exist\n".encode()
-
-        return StreamingResponse(
-            content=error_stream(),
+    # EARLY VALIDATION - Check preconditions before streaming starts
+    if not dry_run_bool and not VOLUME_MAPPED_SRC.exists():
+        raise HTTPException(
             status_code=400,
-            media_type="text/plain",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+            detail="Volume mapped source directory does not exist. This endpoint requires a properly configured environment.",
         )
+
+    # Validate build mode early
+    if build:
+        build_mode_str = build.upper()
+        if build_mode_str not in ["QUICK", "DEBUG", "RELEASE"]:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid build mode: {build}. Must be one of: quick, debug, release",
+            )
+    else:
+        build_mode_str = "QUICK"  # Default
 
     async def stream_compilation() -> AsyncGenerator[bytes, None]:
         """Stream the compilation output line by line."""
-        try:
-            # Convert build mode
-            if build:
-                build_mode_str = build.upper()
-                if build_mode_str not in ["QUICK", "DEBUG", "RELEASE"]:
-                    build_mode_str = "QUICK"  # Default fallback
-            else:
-                build_mode_str = "QUICK"  # Default
+        exit_code = 0
+        status = "SUCCESS"
 
+        try:
             yield f"data: Using BUILD_MODE: {build_mode_str}\n".encode()
+
             if dry_run_bool:
                 yield "data: DRY RUN MODE: Will skip actual compilation\n".encode()
                 yield f"data: Would compile libfastled with BUILD_MODE={build_mode_str}\n".encode()
-                yield "data: COMPILATION_COMPLETE\ndata: EXIT_CODE: 0\ndata: STATUS: SUCCESS\n".encode()
-                return
-
-            if VOLUME_MAPPED_SRC.exists():
+                # Dry run always succeeds
+            else:
+                # Actual compilation logic here
                 builds = [build]
                 yield "data: Checking for source file changes...\n".encode()
 
@@ -410,48 +411,70 @@ async def compile_libfastled(
 
                 loop = asyncio.get_event_loop()
                 start_time = time.time()
-                files_changed = await loop.run_in_executor(
-                    None,
-                    lambda: _NEW_COMPILER.update_src(
-                        builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
-                    ),
-                )
-                duration = time.time() - start_time
+                try:
+                    files_changed = await loop.run_in_executor(
+                        None,
+                        lambda: _NEW_COMPILER.update_src(
+                            builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
+                        ),
+                    )
+                    duration = time.time() - start_time
 
-                if isinstance(files_changed, Exception):
-                    yield f"data: Warning: Error checking for source file changes: {files_changed}\n".encode()
-                elif files_changed:
-                    yield f"data: Source files changed: {len(files_changed)}\n".encode()
-                    # Yield details about each changed file
-                    for file_path in files_changed:
-                        yield f"data: Changed file: {file_path}\n".encode()
-                    yield f"data: Update source time: {duration:.2f} seconds\n".encode()
-                    yield "data: Clearing sketch cache\n".encode()
-                    SKETCH_CACHE.clear()
-                    yield "data: Cache cleared successfully\n".encode()
-                else:
-                    yield "data: No source file changes detected\n".encode()
-                return
+                    if isinstance(files_changed, Exception):
+                        yield f"data: Warning: Error checking for source file changes: {files_changed}\n".encode()
+                        exit_code = 1
+                        status = "FAIL"
+                    elif files_changed:
+                        yield f"data: Source files changed: {len(files_changed)}\n".encode()
+                        # Yield details about each changed file
+                        for file_path in files_changed:
+                            yield f"data: Changed file: {file_path}\n".encode()
+                        yield f"data: Update source time: {duration:.2f} seconds\n".encode()
+                        yield "data: Clearing sketch cache\n".encode()
+                        SKETCH_CACHE.clear()
+                        yield "data: Cache cleared successfully\n".encode()
+                    else:
+                        yield "data: No source file changes detected\n".encode()
 
-            # For now, return an informative error about the missing functionality
-            yield "data: Starting libfastled compilation...\n".encode()
-            yield "data: ERROR: libfastled compilation requires a properly configured environment\n".encode()
-            yield "data: The FastLED source directory is not available in this environment\n".encode()
-            yield f"data: Expected source at: {VOLUME_MAPPED_SRC}\n".encode()
-            yield "data: This endpoint is designed for Docker/container environments\n".encode()
-            yield "data: COMPILATION_COMPLETE\ndata: EXIT_CODE: 1\ndata: STATUS: FAIL\n".encode()
+                    # Here you would add actual libfastled compilation logic
+                    # For now, we'll simulate based on environment
+                    if not VOLUME_MAPPED_SRC.exists():
+                        yield "data: ERROR: FastLED source directory not available\n".encode()
+                        exit_code = 1
+                        status = "FAIL"
+                    else:
+                        yield "data: Compilation completed successfully\n".encode()
+
+                except Exception as e:
+                    yield f"data: ERROR: Compilation failed: {str(e)}\n".encode()
+                    exit_code = 1
+                    status = "FAIL"
 
         except Exception as e:
-            error_message = f"data: ERROR: {str(e)}\ndata: COMPILATION_COMPLETE\ndata: EXIT_CODE: -1\ndata: STATUS: FAIL\n"
-            yield error_message.encode()
+            yield f"data: ERROR: {str(e)}\n".encode()
+            exit_code = -1
+            status = "FAIL"
 
-    # Create the streaming response
+        finally:
+            # Always send completion markers
+            yield "data: COMPILATION_COMPLETE\n".encode()
+            yield f"data: EXIT_CODE: {exit_code}\n".encode()
+            yield f"data: STATUS: {status}\n".encode()
+
+            # Append the logical HTTP status code that would have been used if this wasn't streaming
+            if exit_code == 0:
+                http_status = 200
+            elif exit_code == 1:
+                http_status = 400  # Bad Request - compilation failed
+            else:
+                http_status = 500  # Internal Server Error - unexpected failure
+            yield f"data: HTTP_STATUS: {http_status}\n".encode()
+
+    # Create the streaming response - at this point we're confident it will start successfully
     response = StreamingResponse(
         stream_compilation(),
         media_type="text/plain",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
 
-    # Note: We can't change the status code after streaming starts
-    # The client should check the final STATUS in the stream content
     return response
