@@ -143,10 +143,9 @@ class TestCompileLibfastledEndpoint:
 
     def test_compile_libfastled_streaming_output_simulation(self):
         """Test that streaming output includes real-time compilation messages."""
-        import sys
         import tempfile
         from pathlib import Path
-        from unittest.mock import AsyncMock, patch
+        from unittest.mock import patch
 
         # Create a temporary directory to simulate VOLUME_MAPPED_SRC
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -162,120 +161,80 @@ class TestCompileLibfastledEndpoint:
                 patch("fastled_wasm_server.server.update_src_async") as mock_update_src,
             ):
 
-                # Mock update_src_async to be an async generator
+                # Mock update_src_async to be an async generator that simulates compilation
                 async def mock_update_src_gen(*args, **kwargs):
                     yield "Starting source update check..."
                     yield "Checking for FastLED source file changes..."
-                    yield "No source file changes detected"
+                    yield "Found 5 changed files:"
+                    yield "  Changed: src/FastLED.h"
+                    yield "  Changed: src/lib8tion.h"
+                    yield "  Changed: src/colorutils.h"
+                    yield "  Changed: src/platforms/wasm/compiler/lib/fastled.cpp"
+                    yield "  Changed: src/platforms/wasm/compiler/lib/CMakeLists.txt"
+                    yield "Source files updated successfully"
+                    yield "Compiling libfastled with mode: QUICK"
+                    yield "Configuring cmake..."
+                    yield "Building with emmake..."
+                    yield "LibFastLED compilation completed successfully"
                     yield "Source update completed"
-                    # Note: async generators cannot return values, only yield them
 
                 mock_update_src.side_effect = mock_update_src_gen
 
-                # Create a mock script that works on Windows
-                if sys.platform == "win32":
-                    build_script = temp_path.parent / "build_archive.bat"
-                    build_script.write_text(
-                        """@echo off
-echo Starting libfastled compilation...
-echo Configuring cmake...
-ping -n 1 127.0.0.1 >nul
-echo Building with emmake...
-ping -n 1 127.0.0.1 >nul
-echo Compilation completed successfully
-exit /b 0
-"""
-                    )
-                else:
-                    build_script = temp_path.parent / "build_archive.sh"
-                    build_script.write_text(
-                        """#!/bin/bash
-echo "Starting libfastled compilation..."
-echo "Configuring cmake..."
-sleep 0.1
-echo "Building with emmake..."
-sleep 0.1
-echo "Compilation completed successfully"
-exit 0
-"""
-                    )
-                    build_script.chmod(0o755)
+                with self.client.stream(
+                    "POST",
+                    "/compile/libfastled",
+                    headers={
+                        "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
+                        "build": "quick",
+                        "dry-run": "false",
+                    },
+                ) as response:
+                    assert response.status_code == 200
 
-                # Mock asyncio.create_subprocess_exec to simulate subprocess output
-                async def mock_subprocess(*args, **kwargs):
-                    mock_process = AsyncMock()
-                    mock_process.returncode = 0
+                    content = ""
+                    chunks = []
+                    for chunk in response.iter_text():
+                        content += chunk
+                        chunks.append(chunk)
 
-                    # Simulate streaming output
-                    async def mock_stdout():
-                        lines = [
-                            b"Starting libfastled compilation...\n",
-                            b"Configuring cmake...\n",
-                            b"Building with emmake...\n",
-                            b"Compilation completed successfully\n",
-                        ]
-                        for line in lines:
-                            yield line
+                    # Verify that we get streaming output (should be multiple data: lines)
+                    data_lines = [
+                        line for line in content.split("\n") if line.startswith("data:")
+                    ]
+                    assert (
+                        len(data_lines) > 5
+                    ), f"Should receive multiple data lines for streaming, got {len(data_lines)}"
 
-                    mock_process.stdout = mock_stdout()
-                    mock_process.wait = AsyncMock(return_value=None)
-                    return mock_process
-
-                with patch(
-                    "asyncio.create_subprocess_exec", side_effect=mock_subprocess
-                ):
-                    with self.client.stream(
-                        "POST",
-                        "/compile/libfastled",
-                        headers={
-                            "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
-                            "build": "quick",
-                            "dry-run": "false",
-                        },
-                    ) as response:
-                        assert response.status_code == 200
-
-                        content = ""
-                        chunks = []
-                        for chunk in response.iter_text():
-                            content += chunk
-                            chunks.append(chunk)
-
-                        # Verify that we get streaming output (should be multiple data: lines)
-                        data_lines = [
-                            line
-                            for line in content.split("\n")
-                            if line.startswith("data:")
-                        ]
-                        assert (
-                            len(data_lines) > 5
-                        ), f"Should receive multiple data lines for streaming, got {len(data_lines)}"
-
-                        # Check for expected streaming content
-                        assert "Using BUILD_MODE: QUICK" in content
-                        assert (
-                            "Starting source update check..." in content
-                        )  # New progress message
-                        assert (
-                            "Checking for FastLED source file changes..." in content
-                        )  # New progress message
-                        assert (
-                            "No source file changes detected" in content
-                        )  # From our mock generator
-                        assert (
-                            "Source update completed" in content
-                        )  # New progress message
-                        assert "Starting libfastled compilation" in content
-                        assert "Running build script" in content
-                        assert (
-                            "Starting libfastled compilation..." in content
-                        )  # From our mock script
-                        assert "Configuring cmake..." in content  # From our mock script
-                        assert (
-                            "Building with emmake..." in content
-                        )  # From our mock script
-                        assert (
-                            "LibFastLED compilation completed successfully!" in content
-                        )
-                        assert "STATUS: SUCCESS" in content
-                        assert "HTTP_STATUS: 200" in content
+                    # Check for expected streaming content
+                    assert "Using BUILD_MODE: QUICK" in content
+                    assert (
+                        "Starting source update check..." in content
+                    )  # From update_src_async
+                    assert (
+                        "Checking for FastLED source file changes..." in content
+                    )  # From update_src_async
+                    assert (
+                        "Found 5 changed files:" in content
+                    )  # From our mock generator
+                    assert (
+                        "Source files updated successfully" in content
+                    )  # From our mock generator
+                    assert (
+                        "Compiling libfastled with mode: QUICK" in content
+                    )  # From our mock generator (simulating compile_all_libs output)
+                    assert "Configuring cmake..." in content  # From our mock generator
+                    assert (
+                        "Building with emmake..." in content
+                    )  # From our mock generator
+                    assert "Source update completed" in content  # From update_src_async
+                    assert (
+                        "Clearing sketch cache as a precaution" in content
+                    )  # Cache clearing message
+                    assert (
+                        "Cache cleared successfully" in content
+                    )  # Cache clearing confirmation
+                    assert (
+                        "LibFastLED compilation completed successfully!" in content
+                    )  # Final success message
+                    assert "STATUS: SUCCESS" in content
+                    assert "HTTP_STATUS: 200" in content
