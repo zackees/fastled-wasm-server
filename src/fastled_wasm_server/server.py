@@ -96,6 +96,62 @@ _NEW_COMPILER = Compiler(
     volume_mapped_src=VOLUME_MAPPED_SRC,
 )
 
+
+async def update_src_async(
+    compiler: Compiler, builds: list[str], src_to_merge_from: Path
+) -> AsyncGenerator[str, None]:
+    """
+    Async generator for compiler.update_src() that yields progress updates.
+
+    Args:
+        compiler: The compiler instance
+        builds: List of build types
+        src_to_merge_from: Source directory to merge from
+
+    Yields:
+        str: Progress update messages
+
+    Returns:
+        None: On successful completion
+
+    Raises:
+        Exception: If the source update fails
+    """
+    import asyncio
+
+    yield "Starting source update check..."
+
+    loop = asyncio.get_event_loop()
+    try:
+        yield "Checking for FastLED source file changes..."
+
+        # Run the potentially blocking update_src call in a thread executor
+        files_changed = await loop.run_in_executor(
+            None,
+            lambda: compiler.update_src(
+                builds=builds, src_to_merge_from=src_to_merge_from
+            ),
+        )
+
+        if isinstance(files_changed, Exception):
+            yield f"Error during source update: {files_changed}"
+            raise files_changed
+        elif files_changed:
+            yield f"Found {len(files_changed)} changed files:"
+            for file_path in files_changed:
+                yield f"  Changed: {file_path}"
+            yield "Source files updated successfully"
+        else:
+            yield "No source file changes detected"
+
+        yield "Source update completed"
+        # Note: files_changed info was already yielded in the progress messages above
+
+    except Exception as e:
+        yield f"Source update failed: {str(e)}"
+        raise e
+
+
 _COMPILER = ServerWasmCompiler(
     compiler_root=COMPILER_ROOT,
     sketch_cache=SKETCH_CACHE,
@@ -406,47 +462,155 @@ async def compile_libfastled(
                 builds = [build]
                 yield "data: Checking for source file changes...\n".encode()
 
-                # Run the synchronous update_src call in a thread pool
                 import asyncio
 
-                loop = asyncio.get_event_loop()
                 start_time = time.time()
                 try:
-                    files_changed = await loop.run_in_executor(
-                        None,
-                        lambda: _NEW_COMPILER.update_src(
-                            builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
-                        ),
-                    )
+                    # Stream source file changes check with progress updates
+                    async for progress_msg in update_src_async(
+                        _NEW_COMPILER,
+                        builds=builds,
+                        src_to_merge_from=VOLUME_MAPPED_SRC,
+                    ):
+                        yield f"data: {progress_msg}\n".encode()
+
+                    # The generator completed successfully, get the final result
+                    # Note: files_changed is returned by the generator's return statement
+                    # but since we're using async for, we need to handle this differently
+
                     duration = time.time() - start_time
+                    yield f"data: Source update completed in {duration:.2f} seconds\n".encode()
 
-                    if isinstance(files_changed, Exception):
-                        yield f"data: Warning: Error checking for source file changes: {files_changed}\n".encode()
-                        exit_code = 1
-                        status = "FAIL"
-                    elif files_changed:
-                        yield f"data: Source files changed: {len(files_changed)}\n".encode()
-                        # Yield details about each changed file
-                        for file_path in files_changed:
-                            yield f"data: Changed file: {file_path}\n".encode()
-                        yield f"data: Update source time: {duration:.2f} seconds\n".encode()
-                        yield "data: Clearing sketch cache\n".encode()
-                        SKETCH_CACHE.clear()
-                        yield "data: Cache cleared successfully\n".encode()
-                    else:
-                        yield "data: No source file changes detected\n".encode()
+                    # Clear cache if there were changes (we'll know from the progress messages)
+                    # For now, we'll always clear the cache to be safe
+                    yield "data: Clearing sketch cache as a precaution\n".encode()
+                    SKETCH_CACHE.clear()
+                    yield "data: Cache cleared successfully\n".encode()
 
-                    # Here you would add actual libfastled compilation logic
-                    # For now, we'll simulate based on environment
-                    if not VOLUME_MAPPED_SRC.exists():
-                        yield "data: ERROR: FastLED source directory not available\n".encode()
-                        exit_code = 1
-                        status = "FAIL"
+                    # Now run the actual libfastled compilation with streaming output
+                    yield "data: Starting libfastled compilation...\n".encode()
+
+                    # Set up environment for build
+                    env = os.environ.copy()
+                    env["BUILD_MODE"] = build_mode_str
+
+                    # Use the build_archive.sh script for libfastled compilation
+                    build_script = VOLUME_MAPPED_SRC.parent / "build_archive.sh"
+                    if not build_script.exists():
+                        # Fallback to direct cmake commands if script doesn't exist
+                        yield "data: build_archive.sh not found, using direct cmake commands\n".encode()
+                        fastled_lib_dir = (
+                            VOLUME_MAPPED_SRC
+                            / "platforms"
+                            / "wasm"
+                            / "compiler"
+                            / "lib"
+                        )
+                        if not fastled_lib_dir.exists():
+                            yield f"data: ERROR: FastLED library directory not found at {fastled_lib_dir}\n".encode()
+                            exit_code = 1
+                            status = "FAIL"
+                        else:
+                            build_dir = fastled_lib_dir / "build"
+                            build_dir.mkdir(exist_ok=True)
+
+                            # Run cmake configure
+                            yield "data: Configuring with emcmake cmake...\n".encode()
+                            cmake_cmd = [
+                                "emcmake",
+                                "cmake",
+                                "-DCMAKE_VERBOSE_MAKEFILE=ON",
+                                "..",
+                            ]
+
+                            process = await asyncio.create_subprocess_exec(
+                                *cmake_cmd,
+                                cwd=str(build_dir),
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.STDOUT,
+                                env=env,
+                            )
+
+                            assert (
+                                process.stdout is not None
+                            )  # We set stdout=PIPE, so it won't be None
+                            async for line in process.stdout:
+                                line_str = line.decode("utf-8", errors="replace")
+                                yield f"data: {line_str}".encode()
+
+                            await process.wait()
+                            if process.returncode != 0:
+                                yield f"data: ERROR: cmake configure failed with return code {process.returncode}\n".encode()
+                                exit_code = 1
+                                status = "FAIL"
+                            else:
+                                # Run cmake build
+                                yield "data: Building with emmake cmake...\n".encode()
+                                build_cmd = [
+                                    "emmake",
+                                    "cmake",
+                                    "--build",
+                                    ".",
+                                    "-v",
+                                    "-j",
+                                ]
+
+                                process = await asyncio.create_subprocess_exec(
+                                    *build_cmd,
+                                    cwd=str(build_dir),
+                                    stdout=asyncio.subprocess.PIPE,
+                                    stderr=asyncio.subprocess.STDOUT,
+                                    env=env,
+                                )
+
+                                assert (
+                                    process.stdout is not None
+                                )  # We set stdout=PIPE, so it won't be None
+                                async for line in process.stdout:
+                                    line_str = line.decode("utf-8", errors="replace")
+                                    yield f"data: {line_str}".encode()
+
+                                await process.wait()
+                                if process.returncode != 0:
+                                    yield f"data: ERROR: cmake build failed with return code {process.returncode}\n".encode()
+                                    exit_code = 1
+                                    status = "FAIL"
+                                else:
+                                    yield "data: LibFastLED compilation completed successfully!\n".encode()
                     else:
-                        yield "data: Compilation completed successfully\n".encode()
+                        # Use the build_archive.sh script
+                        yield f"data: Running build script: {build_script}\n".encode()
+
+                        process = await asyncio.create_subprocess_exec(
+                            "/bin/bash",
+                            str(build_script),
+                            cwd=str(VOLUME_MAPPED_SRC.parent),
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.STDOUT,
+                            env=env,
+                        )
+
+                        assert (
+                            process.stdout is not None
+                        )  # We set stdout=PIPE, so it won't be None
+                        async for line in process.stdout:
+                            line_str = line.decode("utf-8", errors="replace")
+                            # Clean up paths for better readability
+                            line_str = line_str.replace("/git/src", "src").replace(
+                                "/git/fastled/src", "src"
+                            )
+                            yield f"data: {line_str}".encode()
+
+                        await process.wait()
+                        if process.returncode != 0:
+                            yield f"data: ERROR: build script failed with return code {process.returncode}\n".encode()
+                            exit_code = 1
+                            status = "FAIL"
+                        else:
+                            yield "data: LibFastLED compilation completed successfully!\n".encode()
 
                 except Exception as e:
-                    yield f"data: ERROR: Compilation failed: {str(e)}\n".encode()
+                    yield f"data: ERROR: Source update or compilation failed: {str(e)}\n".encode()
                     exit_code = 1
                     status = "FAIL"
 
