@@ -371,6 +371,18 @@ async def compile_libfastled(
         f"Endpoint accessed: /compile/libfastled with build: {build}, dry_run: {dry_run_bool}"
     )
 
+    if not VOLUME_MAPPED_SRC.exists() and not dry_run:
+
+        async def error_stream() -> AsyncGenerator[bytes, None]:
+            yield "data: Volume mapped source directory does not exist\n".encode()
+
+        return StreamingResponse(
+            content=error_stream(),
+            status_code=400,
+            media_type="text/plain",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        )
+
     async def stream_compilation() -> AsyncGenerator[bytes, None]:
         """Stream the compilation output line by line."""
         try:
