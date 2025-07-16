@@ -409,17 +409,23 @@ async def compile_libfastled(
                 import asyncio
 
                 loop = asyncio.get_event_loop()
+                start_time = time.time()
                 files_changed = await loop.run_in_executor(
                     None,
                     lambda: _NEW_COMPILER.update_src(
                         builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
                     ),
                 )
+                duration = time.time() - start_time
 
                 if isinstance(files_changed, Exception):
                     yield f"data: Warning: Error checking for source file changes: {files_changed}\n".encode()
                 elif files_changed:
                     yield f"data: Source files changed: {len(files_changed)}\n".encode()
+                    # Yield details about each changed file
+                    for file_path in files_changed:
+                        yield f"data: Changed file: {file_path}\n".encode()
+                    yield f"data: Update source time: {duration:.2f} seconds\n".encode()
                     yield "data: Clearing sketch cache\n".encode()
                     SKETCH_CACHE.clear()
                     yield "data: Cache cleared successfully\n".encode()
