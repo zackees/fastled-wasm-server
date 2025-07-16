@@ -23,6 +23,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastled_wasm_compiler import Compiler
+from fastled_wasm_compiler.compiler import UpdateSrcResult
 from fastled_wasm_compiler.dwarf_path_to_file_path import (
     dwarf_path_to_file_path,
 )
@@ -123,20 +124,23 @@ async def update_src_async(
 
     loop = asyncio.get_event_loop()
     try:
-        yield "Checking for FastLED source file changes..."
+        yield f"Checking for FastLED source file changes from {src_to_merge_from}..."
 
         # Run the potentially blocking update_src call in a thread executor
-        files_changed = await loop.run_in_executor(
+        update_src_result: UpdateSrcResult | Exception = await loop.run_in_executor(
             None,
             lambda: compiler.update_src(
                 builds=builds, src_to_merge_from=src_to_merge_from
             ),
         )
 
-        if isinstance(files_changed, Exception):
-            yield f"Error during source update: {files_changed}"
-            raise files_changed
-        elif files_changed:
+        if isinstance(update_src_result, Exception):
+            yield f"Error during source update: {update_src_result}"
+            raise update_src_result
+
+        files_changed = update_src_result.files_changed
+        if files_changed:
+            yield f"Source update result: {update_src_result.stdout}"
             yield f"Found {len(files_changed)} changed files:"
             for file_path in files_changed:
                 yield f"  Changed: {file_path}"

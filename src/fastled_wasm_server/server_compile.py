@@ -21,6 +21,7 @@ from fastapi import (  # type: ignore
 )
 from fastapi.responses import FileResponse  # type: ignore
 from fastled_wasm_compiler import Compiler
+from fastled_wasm_compiler.compiler import UpdateSrcResult
 from fastled_wasm_compiler.run_compile import Args
 from fastled_wasm_compiler.sketch_hasher import (
     generate_hash_of_project_files,  # type: ignore
@@ -334,16 +335,16 @@ def server_compile(
 
         if allow_libcompile and VOLUME_MAPPED_SRC.exists():
             builds = [build]
-            files_changed = compiler.update_src(
+            update_result: UpdateSrcResult | Exception = compiler.update_src(
                 builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
             )
-            if isinstance(files_changed, Exception):
+            if isinstance(update_result, Exception):
                 warnings.warn(
-                    f"Error checking for source file changes: {files_changed}"
+                    f"Error checking for source file changes: {update_result}"
                 )
-            elif files_changed:
+            elif update_result.files_changed:
                 print(
-                    f"Source files changed: {len(files_changed)}\nClearing sketch cache"
+                    f"Source files changed: {len(update_result.files_changed)}\nClearing sketch cache"
                 )
                 sketch_cache.clear()
 
