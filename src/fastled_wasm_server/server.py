@@ -391,18 +391,29 @@ async def compile_libfastled(
 
             if VOLUME_MAPPED_SRC.exists():
                 builds = [build]
-                files_changed = _NEW_COMPILER.update_src(
-                    builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
+                yield "data: Checking for source file changes...\n".encode()
+
+                # Run the synchronous update_src call in a thread pool
+                import asyncio
+
+                loop = asyncio.get_event_loop()
+                files_changed = await loop.run_in_executor(
+                    None,
+                    lambda: _NEW_COMPILER.update_src(
+                        builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
+                    ),
                 )
+
                 if isinstance(files_changed, Exception):
-                    warnings.warn(
-                        f"Error checking for source file changes: {files_changed}"
-                    )
+                    yield f"data: Warning: Error checking for source file changes: {files_changed}\n".encode()
                 elif files_changed:
-                    print(
-                        f"Source files changed: {len(files_changed)}\nClearing sketch cache"
-                    )
+                    yield f"data: Source files changed: {len(files_changed)}\n".encode()
+                    yield "data: Clearing sketch cache\n".encode()
                     SKETCH_CACHE.clear()
+                    yield "data: Cache cleared successfully\n".encode()
+                else:
+                    yield "data: No source file changes detected\n".encode()
+                return
 
             # For now, return an informative error about the missing functionality
             yield "data: Starting libfastled compilation...\n".encode()
