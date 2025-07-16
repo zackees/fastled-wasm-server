@@ -11,7 +11,7 @@ keywords = ["fastled wasm server"]
 license = { text = "BSD 3-Clause License" }
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "fastled-wasm-compiler>=1.0.102",
+    "fastled-wasm-compiler>=1.0.104",
     "fastapi==0.115.11",
     "uvicorn[standard]==0.34.0",
     "python-multipart==0.0.20",
@@ -21,7 +21,7 @@ dependencies = [
     "httpx>=0.25.0",
 ]
 # Change this with the version number bump.
-version = "1.1.31"
+version = "1.1.32"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
