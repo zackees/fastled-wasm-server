@@ -170,7 +170,6 @@ def _compile_source(
     compile_time = time.time() - compiled_lock_end
     COMPILE_LOCK_time = compiled_lock_end - compile_lock_start
 
-    print(f"\nCompiler output:\nstdout:\n{stdout}")
     print(f"Compile lock time: {COMPILE_LOCK_time:.2f}s")
     print(f"Compile time: {compile_time:.2f}s")
 
