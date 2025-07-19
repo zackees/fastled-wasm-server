@@ -45,7 +45,6 @@ class TestFastLEDWasmClient:
         mock_response.json.return_value = {
             "ALLOW_SHUTDOWN": True,
             "NO_AUTO_UPDATE": "0",
-            "NO_SKETCH_CACHE": False,
             "LIVE_GIT_UPDATES_ENABLED": False,
             "LIVE_GIT_UPDATES_INTERVAL": 86400,
             "UPLOAD_LIMIT": 10485760,
@@ -300,7 +299,6 @@ class TestAPIClientIntegration:
         settings = ServerSettings(
             ALLOW_SHUTDOWN=True,
             NO_AUTO_UPDATE="0",
-            NO_SKETCH_CACHE=False,
             LIVE_GIT_UPDATES_ENABLED=False,
             LIVE_GIT_UPDATES_INTERVAL=86400,
             UPLOAD_LIMIT=10485760,

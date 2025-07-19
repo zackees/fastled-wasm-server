@@ -67,7 +67,6 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List
 
-from disklru import DiskLRUCache  # type: ignore
 from fastled_wasm_compiler import Compiler
 
 from fastled_wasm_server.compile_lock import COMPILE_LOCK
@@ -180,12 +179,8 @@ logger = logging.getLogger(__name__)
 _COMPILER_STATS = CompilerStats()
 _NEW_COMPILER = Compiler(volume_mapped_src=VOLUME_MAPPED_SRC)
 
-# Create a minimal cache for MCP server
-_SKETCH_CACHE = DiskLRUCache(str(Path("/tmp/mcp_sketch_cache")), 50)
-
 _COMPILER = ServerWasmCompiler(
     compiler_root=Path("/tmp/compiler"),  # Default compiler root
-    sketch_cache=_SKETCH_CACHE,  # Use actual cache instead of None
     compiler=_NEW_COMPILER,
     only_quick_builds=False,
     compiler_lock=COMPILE_LOCK,
@@ -386,7 +381,6 @@ async def handle_compile_sketch(arguments: Dict[str, Any]) -> List[types.TextCon
                 build=build_mode,
                 profile="false",
                 output_dir=OUTPUT_DIR,
-                use_sketch_cache=False,
                 background_tasks=mock_background_tasks,  # type: ignore - MockBackgroundTasks is compatible
             )
 

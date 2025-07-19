@@ -32,7 +32,6 @@ class ServerSettings(BaseModel):
 
     ALLOW_SHUTDOWN: bool
     NO_AUTO_UPDATE: str
-    NO_SKETCH_CACHE: bool
     LIVE_GIT_UPDATES_ENABLED: bool
     LIVE_GIT_UPDATES_INTERVAL: int
     UPLOAD_LIMIT: int

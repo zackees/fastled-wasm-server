@@ -34,7 +34,6 @@ async def async_example():
         print("\n=== Server Settings ===")
         settings = await client.get_settings()
         print(f"Upload limit: {settings.UPLOAD_LIMIT}")
-        print(f"Cache enabled: {not settings.NO_SKETCH_CACHE}")
         
         # Check if compiler is in use
         print("\n=== Compiler Status ===")

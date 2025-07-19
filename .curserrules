@@ -89,7 +89,7 @@ uv run uvicorn fastled_wasm_server.server:app --host 0.0.0.0 --port 80
 ```
 
 ## Dependencies
-- Main deps: fastled-wasm-compiler, fastapi, uvicorn, python-multipart, disklru, psutil, wormhole-tx
+- Main deps: fastled-wasm-compiler, fastapi, uvicorn, python-multipart, psutil, wormhole-tx
 - Testing deps: black, isort, mypy, pytest, tox, ruff, pyright, pytest-xdist
 
 ## File Structure Notes
@@ -103,7 +103,6 @@ uv run uvicorn fastled_wasm_server.server:app --host 0.0.0.0 --port 80
 - `DISABLE_AUTO_CLEAN`: Disable auto cleanup
 - `ALLOW_SHUTDOWN`: Allow server shutdown
 - `NO_AUTO_UPDATE`: Disable auto updates
-- `NO_SKETCH_CACHE`: Disable sketch caching
 
 ## Key Rules
 1. **NEVER use python/python3/pip directly** - always use `uv run` or `uv` commands

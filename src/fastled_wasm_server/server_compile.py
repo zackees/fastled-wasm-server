@@ -1,5 +1,4 @@
 import json
-import os
 import shutil
 import subprocess
 import tempfile
@@ -11,9 +10,7 @@ import zipfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
-from disklru import DiskLRUCache  # type: ignore
 from fastapi import (  # type: ignore
     BackgroundTasks,
     HTTPException,
@@ -23,9 +20,6 @@ from fastapi.responses import FileResponse  # type: ignore
 from fastled_wasm_compiler import Compiler
 from fastled_wasm_compiler.compiler import UpdateSrcResult
 from fastled_wasm_compiler.run_compile import Args
-from fastled_wasm_compiler.sketch_hasher import (
-    generate_hash_of_project_files,  # type: ignore
-)
 
 from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
 from fastled_wasm_server.types import CompilerStats
@@ -35,14 +29,6 @@ from fastled_wasm_server.types import CompilerStats
 
 # TODO Fix.
 FASTLED_COMPILER_DIR = Path("/git/fastled/src/platforms/wasm/compiler")
-
-
-def try_get_cached_zip(sketch_cache: DiskLRUCache, hash: str) -> bytes | None:
-    return sketch_cache.get_bytes(hash)
-
-
-def cache_put(sketch_cache: DiskLRUCache, hash: str, data: bytes) -> None:
-    sketch_cache.put_bytes(hash, data)
 
 
 @dataclass
@@ -201,7 +187,7 @@ def _compile_source(
         hash_txt.write_text(hash_value)
 
     output_dir.mkdir(exist_ok=True)  # Ensure output directory exists
-    output_zip_path = output_dir / f"fastled_output_{hash(str(file_path))}.zip"
+    output_zip_path = output_dir / "fastled_output.zip"
     _print(f"\nCreating output zip at: {output_zip_path}")
 
     start_zip = time.time()
@@ -251,8 +237,6 @@ def server_compile(
     file: UploadFile,
     build: str,
     profile: str,
-    sketch_cache: DiskLRUCache,
-    use_sketch_cache: bool,
     compiler: Compiler,
     only_quick_builds: bool,
     strict: bool,
@@ -325,12 +309,8 @@ def server_compile(
                 for p in platform_files:
                     p.unlink()
 
-            try:
-                hash_value = generate_hash_of_project_files(Path(temp_src_dir))
-            except Exception as e:
-                warnings.warn(
-                    f"Error generating hash: {e}, fast cache access is disabled for this build."
-                )
+            # Use constant hash value instead of fingerprinting
+            hash_value = "0"
 
         if allow_libcompile and VOLUME_MAPPED_SRC.exists():
             builds = [build]
@@ -342,37 +322,10 @@ def server_compile(
                     f"Error checking for source file changes: {update_result}"
                 )
             elif update_result.files_changed:
-                print(
-                    f"Source files changed: {len(update_result.files_changed)}\nClearing sketch cache"
-                )
-                sketch_cache.clear()
+                print(f"Source files changed: {len(update_result.files_changed)}")
 
-        entry: bytes | None = None
         if hash_value is not None:
             print(f"Hash of source files: {hash_value}")
-            if use_sketch_cache:
-                entry = try_get_cached_zip(sketch_cache=sketch_cache, hash=hash_value)
-        if entry is not None:
-            print("Returning cached zip file")
-            # Create a temporary file for the cached data
-            tmp_file = NamedTemporaryFile(delete=False)
-            tmp_file.write(entry)
-            tmp_file.close()
-
-            def cleanup_temp():
-                try:
-                    os.unlink(tmp_file.name)
-                except:  # noqa: E722
-                    pass
-
-            background_tasks.add_task(cleanup_temp)
-
-            return FileResponse(
-                path=tmp_file.name,
-                media_type="application/zip",
-                filename="fastled_output.zip",
-                background=background_tasks,
-            )
 
         print("\nContents of source directory:")
         for path in Path(temp_src_dir).rglob("*"):
@@ -399,11 +352,6 @@ def server_compile(
             warnings.warn(f"Error compiling source: {json_str}")
             raise out
         compiled_out: CompileResult = out  # compiled_out is now a known type.
-        # Cache the compiled zip file
-        out_path: Path = compiled_out.output_zip_path
-        data = out_path.read_bytes()
-        if hash_value is not None and use_sketch_cache:
-            cache_put(sketch_cache=sketch_cache, hash=hash_value, data=data)
 
         def _cleanup_task(paths=compiled_out.cleanup_list) -> None:
             _cleanup_files(paths)
@@ -441,13 +389,11 @@ class ServerWasmCompiler:
     def __init__(
         self,
         compiler_root: Path,
-        sketch_cache: DiskLRUCache,
         compiler: Compiler,
         compiler_lock: threading.Lock,
         only_quick_builds: bool,
     ):
         self.compiler_root = compiler_root
-        self.sketch_cache = sketch_cache
         self.compiler = compiler
         self.compiler_lock = compiler_lock
         self.only_quick_builds = only_quick_builds
@@ -460,7 +406,6 @@ class ServerWasmCompiler:
         profile: str,
         output_dir: Path,
         background_tasks: BackgroundTasks,
-        use_sketch_cache: bool,
         strict: bool,
         no_platformio: bool,
         native: bool,
@@ -471,8 +416,6 @@ class ServerWasmCompiler:
             file=file,
             build=build,
             profile=profile,
-            sketch_cache=self.sketch_cache,
-            use_sketch_cache=use_sketch_cache,
             strict=strict,
             compiler=self.compiler,
             only_quick_builds=self.only_quick_builds,

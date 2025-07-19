@@ -161,7 +161,6 @@ uv add mcp
 The MCP server respects the same environment variables as the main FastLED WASM server:
 
 - `DISABLE_AUTO_CLEAN`: Disable automatic cleanup
-- `NO_SKETCH_CACHE`: Disable sketch caching
 - `MEMORY_LIMIT_MB`: Set memory limit
 
 ## Notes

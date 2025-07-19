@@ -228,12 +228,6 @@ class TestCompileLibfastledEndpoint:
                     )  # From our mock generator
                     assert "Source update completed" in content  # From update_src_async
                     assert (
-                        "Clearing sketch cache as a precaution" in content
-                    )  # Cache clearing message
-                    assert (
-                        "Cache cleared successfully" in content
-                    )  # Cache clearing confirmation
-                    assert (
                         "LibFastLED compilation completed successfully!" in content
                     )  # Final success message
                     assert "STATUS: SUCCESS" in content

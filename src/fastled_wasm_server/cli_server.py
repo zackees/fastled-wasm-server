@@ -15,7 +15,6 @@ class Args:
     disable_auto_clean: bool
     allow_shutdown: bool
     no_auto_update: bool
-    no_sketch_cache: bool
 
     def __post_init__(self):
         if not isinstance(self.cwd, Path):
@@ -49,18 +48,12 @@ class Args:
             action="store_true",
             help="Disable auto update.",
         )
-        parser.add_argument(
-            "--no-sketch-cache",
-            action="store_true",
-            help="Disable sketch cache.",
-        )
         args = parser.parse_args()
         return Args(
             cwd=args.cwd,
             disable_auto_clean=args.disable_auto_clean,
             allow_shutdown=args.allow_shutdown,
             no_auto_update=args.no_auto_update,
-            no_sketch_cache=args.no_sketch_cache,
         )
 
 
@@ -72,8 +65,6 @@ def run_server(args: Args) -> int:
         env["ALLOW_SHUTDOWN"] = "1"
     if args.no_auto_update:
         env["NO_AUTO_UPDATE"] = "1"
-    if args.no_sketch_cache:
-        env["NO_SKETCH_CACHE"] = "1"
     cmd_list = [
         "uvicorn",
         "fastled_wasm_server.server:app",

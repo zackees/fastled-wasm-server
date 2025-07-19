@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator, Optional
 
-from disklru import DiskLRUCache
 from fastapi import (
     BackgroundTasks,
     Body,
@@ -34,7 +33,6 @@ from fastled_wasm_server.examples import EXAMPLES
 from fastled_wasm_server.paths import (  # The folder where the actual source code is located.; FASTLED_SRC,
     COMPILER_ROOT,
     OUTPUT_DIR,
-    SKETCH_CACHE_FILE,
     UPLOAD_DIR,
     VOLUME_MAPPED_SRC,
 )
@@ -63,7 +61,6 @@ _LIVE_GIT_UPDATES_INTERVAL = int(
     os.environ.get("LIVE_GIT_UPDATE_INTERVAL", 60 * 60 * 24)
 )  # Update every 24 hours
 _ALLOW_SHUTDOWN = os.environ.get("ALLOW_SHUTDOWN", "false").lower() in ["true", "1"]
-_NO_SKETCH_CACHE = os.environ.get("NO_SKETCH_CACHE", "false").lower() in ["true", "1"]
 
 # debug is a 20mb payload for the symbol information.
 _ONLY_QUICK_BUILDS = os.environ.get("ONLY_QUICK_BUILDS", "false").lower() in [
@@ -78,19 +75,11 @@ _ALLOW_CODE_SYNC = False
 _LIVE_GIT_UPDATES_ENABLED = False
 
 
-if _NO_SKETCH_CACHE:
-    print("Sketch caching disabled")
-
-
 UPLOAD_DIR.mkdir(exist_ok=True)
 START_TIME = time.time()
 
 
 OUTPUT_DIR.mkdir(exist_ok=True)
-
-# Initialize disk cache
-SKETCH_CACHE_MAX_ENTRIES = 50
-SKETCH_CACHE = DiskLRUCache(str(SKETCH_CACHE_FILE), SKETCH_CACHE_MAX_ENTRIES)
 
 # New compiler type that will replace the legacy ones.
 _NEW_COMPILER = Compiler(
@@ -158,7 +147,6 @@ async def update_src_async(
 
 _COMPILER = ServerWasmCompiler(
     compiler_root=COMPILER_ROOT,
-    sketch_cache=SKETCH_CACHE,
     compiler=_NEW_COMPILER,
     only_quick_builds=_ONLY_QUICK_BUILDS,
     compiler_lock=COMPILE_LOCK,
@@ -193,25 +181,10 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(UploadSizeMiddleware, max_upload_size=_UPLOAD_LIMIT)
 
 
-def try_get_cached_zip(hash: str) -> bytes | None:
-    if _NO_SKETCH_CACHE:
-        print("Sketch caching disabled, skipping cache get")
-        return None
-    return SKETCH_CACHE.get_bytes(hash)
-
-
-def cache_put(hash: str, data: bytes) -> None:
-    if _NO_SKETCH_CACHE:
-        print("Sketch caching disabled, skipping cache put")
-        return
-    SKETCH_CACHE.put_bytes(hash, data)
-
-
 def get_settings() -> dict:
     settings = {
         "ALLOW_SHUTDOWN": _ALLOW_SHUTDOWN,
         "NO_AUTO_UPDATE": os.environ.get("NO_AUTO_UPDATE", "0"),
-        "NO_SKETCH_CACHE": _NO_SKETCH_CACHE,
         "LIVE_GIT_UPDATES_ENABLED": _LIVE_GIT_UPDATES_ENABLED,
         "LIVE_GIT_UPDATES_INTERVAL": _LIVE_GIT_UPDATES_INTERVAL,
         "UPLOAD_LIMIT": _UPLOAD_LIMIT,
@@ -244,7 +217,6 @@ if _ALLOW_SHUTDOWN:
         """Shutdown the server."""
         print("Endpoint accessed: /shutdown")
         print("Shutting down server...")
-        SKETCH_CACHE.close()
         os._exit(0)
         return {"status": "ok"}
 
@@ -256,7 +228,6 @@ async def settings() -> dict:
     settings = {
         "ALLOW_SHUTDOWN": _ALLOW_SHUTDOWN,
         "NO_AUTO_UPDATE": os.environ.get("NO_AUTO_UPDATE", "0"),
-        "NO_SKETCH_CACHE": _NO_SKETCH_CACHE,
         "LIVE_GIT_UPDATES_ENABLED": _LIVE_GIT_UPDATES_ENABLED,
         "LIVE_GIT_UPDATES_INTERVAL": _LIVE_GIT_UPDATES_INTERVAL,
         "UPLOAD_LIMIT": _UPLOAD_LIMIT,
@@ -399,7 +370,6 @@ def compile_wasm(
         build=build,
         profile=profile,
         output_dir=OUTPUT_DIR,
-        use_sketch_cache=not _NO_SKETCH_CACHE,
         background_tasks=background_tasks,
         strict=strict,
         no_platformio=no_platformio,
@@ -482,12 +452,6 @@ async def compile_libfastled(
 
                     duration = time.time() - start_time
                     yield f"data: Source update completed in {duration:.2f} seconds\n".encode()
-
-                    # Clear cache if there were changes (we'll know from the progress messages)
-                    # For now, we'll always clear the cache to be safe
-                    yield "data: Clearing sketch cache as a precaution\n".encode()
-                    SKETCH_CACHE.clear()
-                    yield "data: Cache cleared successfully\n".encode()
 
                     yield "data: LibFastLED compilation completed successfully!\n".encode()
 

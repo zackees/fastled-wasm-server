@@ -15,7 +15,6 @@ dependencies = [
     "fastapi==0.115.11",
     "uvicorn[standard]==0.34.0",
     "python-multipart==0.0.20",
-    "disklru>=2.0.4",
     "psutil==6.1.1",
     "wormhole-tx",
     "httpx>=0.25.0",
