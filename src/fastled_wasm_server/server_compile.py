@@ -136,7 +136,6 @@ def _compile_source(
 
         for line in iter(proc.stdout.readline, ""):
             line = line.replace("/git/src", "src").replace("/git/fastled/src", "src")
-            line = line.replace(".ino.cpp", ".ino")  # nice print
             print(line, end="")
             stdout_lines.append(line)
         _print("Compiler finished.")
@@ -302,15 +301,8 @@ def server_compile(
             # Extract everything first
             zip_ref.extractall(temp_src_dir)
 
-            # Then find and remove any platformio.ini files
-            platform_files = list(Path(temp_src_dir).rglob("*platformio.ini"))
-            if platform_files:
-                warnings.warn(f"Removing platformio.ini files: {platform_files}")
-                for p in platform_files:
-                    p.unlink()
-
-            # Use constant hash value instead of fingerprinting
-            hash_value = "0"
+            # Use deprecated timestamp as hash value
+        hash_value = f"deprecated-{time.time()}"
 
         if allow_libcompile and VOLUME_MAPPED_SRC.exists():
             builds = [build]
@@ -323,9 +315,6 @@ def server_compile(
                 )
             elif update_result.files_changed:
                 print(f"Source files changed: {len(update_result.files_changed)}")
-
-        if hash_value is not None:
-            print(f"Hash of source files: {hash_value}")
 
         print("\nContents of source directory:")
         for path in Path(temp_src_dir).rglob("*"):
