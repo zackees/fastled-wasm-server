@@ -117,6 +117,7 @@ def _compile_source(
         debug=build_mode.lower() == "debug",
         quick=build_mode.lower() == "quick",
         release=build_mode.lower() == "release",
+        fast_debug=build_mode.lower() == "fast-debug",
         strict=strict,
     )
     cmd = ["fastled-wasm-compiler"] + args.to_cmd_args()
