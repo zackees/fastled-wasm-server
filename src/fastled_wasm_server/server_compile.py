@@ -307,12 +307,16 @@ def server_compile(
 
         if allow_libcompile and VOLUME_MAPPED_SRC.exists():
             builds = [build]
-            update_result: UpdateSrcResult | Exception = compiler.update_src(
+            update_result: UpdateSrcResult = compiler.update_src(
                 builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
             )
-            if isinstance(update_result, Exception):
+            # Check if the result contains an exception
+            if (
+                hasattr(update_result, "exception")
+                and getattr(update_result, "exception", None) is not None
+            ):
                 warnings.warn(
-                    f"Error checking for source file changes: {update_result}"
+                    f"Error checking for source file changes: {getattr(update_result, 'exception')}"
                 )
             elif update_result.files_changed:
                 print(f"Source files changed: {len(update_result.files_changed)}")

@@ -232,3 +232,78 @@ class TestCompileLibfastledEndpoint:
                     )  # Final success message
                     assert "STATUS: SUCCESS" in content
                     assert "HTTP_STATUS: 200" in content
+
+    def test_compile_libfastled_error_handling_with_detailed_output(self):
+        """Test that compilation errors include detailed error information including stdout/stderr."""
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        # Create a temporary directory to simulate VOLUME_MAPPED_SRC
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Create minimal FastLED structure that update_src expects
+            fastled_h = temp_path / "FastLED.h"
+            fastled_h.write_text("// Mock FastLED.h file\n#pragma once\n")
+
+            # Mock both the VOLUME_MAPPED_SRC and the update_src_async function
+            with (
+                patch("fastled_wasm_server.server.VOLUME_MAPPED_SRC", temp_path),
+                patch("fastled_wasm_server.server.update_src_async") as mock_update_src,
+            ):
+
+                # Mock update_src_async to simulate a compilation failure with detailed error info
+                async def mock_update_src_gen_with_error(*args, **kwargs):
+                    yield "Starting source update check..."
+                    yield "Checking for FastLED source file changes..."
+
+                    # Create a mock exception with captured output
+                    error = RuntimeError("Compilation failed")
+                    error.stdout = "make: *** [all] Error 1\nCompilation terminated."  # type: ignore
+                    error.stderr = "fatal error: FastLED.h: No such file or directory"  # type: ignore
+                    error.returncode = 1  # type: ignore
+
+                    # Yield error message before raising
+                    yield "Source update failed: Compilation failed\nreturn code: 1\nstdout: make: *** [all] Error 1\nCompilation terminated.\nstderr: fatal error: FastLED.h: No such file or directory"
+
+                    raise error
+
+                mock_update_src.side_effect = mock_update_src_gen_with_error
+
+                with self.client.stream(
+                    "POST",
+                    "/compile/libfastled",
+                    headers={
+                        "authorization": "oBOT5jbsO4ztgrpNsQwlmFLIKB",
+                        "build": "quick",
+                        "dry-run": "false",
+                    },
+                ) as response:
+                    assert response.status_code == 200
+
+                    content = ""
+                    for chunk in response.iter_text():
+                        content += chunk
+
+                    # Verify error handling includes detailed information
+                    assert "Using BUILD_MODE: QUICK" in content
+                    assert "Starting source update check..." in content
+                    assert "Checking for FastLED source file changes..." in content
+
+                    # Check that detailed error information is captured
+                    assert (
+                        "ERROR: Source update or compilation failed: Compilation failed"
+                        in content
+                    )
+                    assert "Compilation stdout: make: *** [all] Error 1" in content
+                    assert (
+                        "Compilation stderr: fatal error: FastLED.h: No such file or directory"
+                        in content
+                    )
+                    assert "Exit code: 1" in content
+
+                    # Verify the response indicates failure
+                    assert "STATUS: FAIL" in content
+                    assert "HTTP_STATUS: 400" in content
+                    assert "COMPILATION_COMPLETE" in content

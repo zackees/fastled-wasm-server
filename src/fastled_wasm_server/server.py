@@ -112,21 +112,69 @@ async def update_src_async(
     yield "Starting source update check..."
 
     loop = asyncio.get_event_loop()
+
     try:
         yield f"Checking for FastLED source file changes from {src_to_merge_from}..."
 
         # Run the potentially blocking update_src call in a thread executor
-        update_src_result: UpdateSrcResult | Exception = await loop.run_in_executor(
+        # update_src now always returns UpdateSrcResult, but may contain an exception member
+        update_src_result: UpdateSrcResult = await loop.run_in_executor(
             None,
             lambda: compiler.update_src(
                 builds=builds, src_to_merge_from=src_to_merge_from
             ),
         )
 
-        if isinstance(update_src_result, Exception):
-            yield f"Error during source update: {update_src_result}"
-            raise update_src_result
+        # Check if the result contains an exception
+        if (
+            hasattr(update_src_result, "exception")
+            and getattr(update_src_result, "exception", None) is not None  # type: ignore
+        ):
+            # Extract error information from the exception
+            exception = getattr(update_src_result, "exception")  # type: ignore
+            error_message = str(exception)
 
+            # Try to get additional error details
+            error_details = []
+            if hasattr(exception, "stdout") and getattr(exception, "stdout", None):
+                error_details.append(f"stdout: {getattr(exception, 'stdout')}")
+            if hasattr(exception, "stderr") and getattr(exception, "stderr", None):
+                error_details.append(f"stderr: {getattr(exception, 'stderr')}")
+            if (
+                hasattr(exception, "returncode")
+                and getattr(exception, "returncode", None) is not None
+            ):
+                error_details.append(f"return code: {getattr(exception, 'returncode')}")
+
+            # Also check for any captured output in the result itself
+            if hasattr(update_src_result, "stdout") and getattr(
+                update_src_result, "stdout", None
+            ):
+                error_details.append(
+                    f"result stdout: {getattr(update_src_result, 'stdout')}"
+                )
+            if hasattr(update_src_result, "stderr") and getattr(
+                update_src_result, "stderr", None
+            ):
+                error_details.append(
+                    f"result stderr: {getattr(update_src_result, 'stderr')}"
+                )
+
+            # Create comprehensive error message
+            if error_details:
+                full_error = f"{error_message}\n" + "\n".join(error_details)
+            else:
+                full_error = (
+                    error_message
+                    if error_message
+                    else "Unknown error during source update"
+                )
+
+            yield f"Source update failed: {full_error}"
+            yield "Source update completed with errors"
+            return
+
+        # Success case - process the results
         files_changed = update_src_result.files_changed
         if files_changed:
             yield f"Source update result: {update_src_result.stdout}"
@@ -141,7 +189,27 @@ async def update_src_async(
         # Note: files_changed info was already yielded in the progress messages above
 
     except Exception as e:
-        yield f"Source update failed: {str(e)}"
+        # Handle unexpected exceptions from the executor or other parts
+        error_message = str(e)
+
+        # Try to get additional error details
+        error_details = []
+        if hasattr(e, "stdout") and getattr(e, "stdout", None):
+            error_details.append(f"stdout: {getattr(e, 'stdout')}")
+        if hasattr(e, "stderr") and getattr(e, "stderr", None):
+            error_details.append(f"stderr: {getattr(e, 'stderr')}")
+        if hasattr(e, "returncode") and getattr(e, "returncode", None) is not None:
+            error_details.append(f"return code: {getattr(e, 'returncode')}")
+
+        # Create comprehensive error message
+        if error_details:
+            full_error = f"{error_message}\n" + "\n".join(error_details)
+        else:
+            full_error = (
+                error_message if error_message else "Unknown error during source update"
+            )
+
+        yield f"Source update failed: {full_error}"
         raise e
 
 
@@ -456,12 +524,41 @@ async def compile_libfastled(
                     yield "data: LibFastLED compilation completed successfully!\n".encode()
 
                 except Exception as e:
-                    yield f"data: ERROR: Source update or compilation failed: {str(e)}\n".encode()
+                    # Provide detailed error information
+                    error_message = str(e)
+                    if not error_message:
+                        error_message = f"Unknown {type(e).__name__} exception"
+
+                    yield f"data: ERROR: Source update or compilation failed: {error_message}\n".encode()
+
+                    # Add additional error details if available
+                    if hasattr(e, "stdout") and getattr(e, "stdout", None):
+                        yield f"data: Compilation stdout: {getattr(e, 'stdout')}\n".encode()
+                    if hasattr(e, "stderr") and getattr(e, "stderr", None):
+                        yield f"data: Compilation stderr: {getattr(e, 'stderr')}\n".encode()
+                    if (
+                        hasattr(e, "returncode")
+                        and getattr(e, "returncode", None) is not None
+                    ):
+                        yield f"data: Exit code: {getattr(e, 'returncode')}\n".encode()
+
                     exit_code = 1
                     status = "FAIL"
 
         except Exception as e:
-            yield f"data: ERROR: {str(e)}\n".encode()
+            # Provide detailed error information for outer exceptions
+            error_message = str(e)
+            if not error_message:
+                error_message = f"Unknown {type(e).__name__} exception"
+
+            yield f"data: ERROR: {error_message}\n".encode()
+
+            # Include stack trace for debugging
+            import traceback
+
+            stack_trace = traceback.format_exc()
+            yield f"data: Stack trace: {stack_trace}\n".encode()
+
             exit_code = -1
             status = "FAIL"
 
