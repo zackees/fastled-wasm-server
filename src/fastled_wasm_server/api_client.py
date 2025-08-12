@@ -208,6 +208,17 @@ class Client:
         response.raise_for_status()
         return response.text
 
+    def export_emsdk_headers(self) -> bytes:
+        """
+        Export EMSDK headers zip from the server.
+
+        Returns:
+            bytes: EMSDK headers zip file content.
+        """
+        response = self._client.get("/headers/emsdk")
+        response.raise_for_status()
+        return response.content
+
     def compile_wasm(
         self,
         file_path: Union[str, Path],
@@ -493,6 +504,17 @@ class ClientAsync:
         response = await self._client.post("/dwarfsource", json=request.model_dump())
         response.raise_for_status()
         return response.text
+
+    async def export_emsdk_headers(self) -> bytes:
+        """
+        Export EMSDK headers zip from the server asynchronously.
+
+        Returns:
+            bytes: EMSDK headers zip file content.
+        """
+        response = await self._client.get("/headers/emsdk")
+        response.raise_for_status()
+        return response.content
 
     async def compile_wasm(
         self,

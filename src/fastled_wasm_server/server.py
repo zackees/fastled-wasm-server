@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import tempfile
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -395,6 +397,28 @@ def info_examples() -> dict:
         "available_builds": available_builds,
     }
     return out
+
+
+@app.get("/headers/emsdk")
+def headers_emsdk(background_tasks: BackgroundTasks) -> FileResponse:
+    """Export EMSDK headers using fastled-wasm-compiler."""
+    print("Endpoint accessed: /headers/emsdk")
+    tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    tmp.close()
+    output_path = Path(tmp.name)
+    result = subprocess.run(
+        ["fastled-wasm-compiler", "--headers-emsdk", str(output_path)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise HTTPException(
+            status_code=500, detail=f"Header export failed: {result.stderr}"
+        )
+    background_tasks.add_task(output_path.unlink)
+    return FileResponse(
+        path=output_path, media_type="application/zip", filename=output_path.name
+    )
 
 
 # THIS MUST NOT BE ASYNC!!!!
