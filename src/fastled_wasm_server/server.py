@@ -400,7 +400,7 @@ def info_examples() -> dict:
 
 
 @app.get("/headers/emsdk")
-def headers_emsdk() -> StreamingResponse:
+def headers_emsdk(background_tasks: BackgroundTasks) -> FileResponse:
     """Export EMSDK headers using fastled-wasm-compiler."""
     print("Endpoint accessed: /headers/emsdk")
     tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
@@ -416,21 +416,13 @@ def headers_emsdk() -> StreamingResponse:
             status_code=500, detail=f"Header export failed: {result.stderr}"
         )
 
-    def generate_file():
-        try:
-            with open(output_path, "rb") as f:
-                while chunk := f.read(8192):
-                    yield chunk
-        finally:
-            output_path.unlink()
+    background_tasks.add_task(output_path.unlink)
 
-    return StreamingResponse(
-        generate_file(),
+    return FileResponse(
+        path=output_path,
         media_type="application/zip",
-        headers={
-            "Content-Disposition": "attachment; filename=headers-emsdk.zip",
-            "Cache-Control": "no-cache",
-        },
+        filename="headers-emsdk.zip",
+        headers={"Cache-Control": "no-cache"},
     )
 
 
