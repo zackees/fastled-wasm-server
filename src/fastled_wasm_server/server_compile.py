@@ -310,13 +310,13 @@ def server_compile(
             update_result: UpdateSrcResult = compiler.update_src(
                 builds=builds, src_to_merge_from=VOLUME_MAPPED_SRC
             )
-            # Check if the result contains an exception
-            if (
-                hasattr(update_result, "exception")
-                and getattr(update_result, "exception", None) is not None
-            ):
-                warnings.warn(
-                    f"Error checking for source file changes: {getattr(update_result, 'exception')}"
+            # Check if the result contains an error
+            if update_result.error is not None:
+                error_msg = f"Error compiling libfastled.a: {update_result.error}\n\nOutput:\n{update_result.stdout}"
+                print(f"❌ Library compilation failed: {error_msg}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=error_msg,
                 )
             elif update_result.files_changed:
                 print(f"Source files changed: {len(update_result.files_changed)}")
