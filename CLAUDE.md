@@ -37,7 +37,7 @@ fastled-wasm-mcp-server  # MCP server entry point
 
 **FastLED WASM Server**: A FastAPI-based compilation server that compiles Arduino/FastLED sketches to WebAssembly. The server runs in the `niteris/fastled-wasm` container environment and provides both REST API and MCP (Model Context Protocol) interfaces.
 
-**Compilation Pipeline**: 
+**Compilation Pipeline**:
 - Uses `fastled-wasm-compiler` library for the actual compilation
 - Supports multiple build modes: `quick` (default), `debug`, `release`
 - Handles both file uploads and direct content compilation
@@ -49,7 +49,7 @@ fastled-wasm-mcp-server  # MCP server entry point
 - `api_client.py`: Async and sync client implementations for interacting with the server
 - `session_manager.py`: Manages compilation sessions and tracking
 
-**MCP Integration**: 
+**MCP Integration**:
 - `mcp_server.py`: Model Context Protocol server for AI assistant integration
 - `cli_mcp.py`: CLI entry point for MCP server
 - Provides tools for sketch compilation, example fetching, and server status
@@ -58,7 +58,7 @@ fastled-wasm-mcp-server  # MCP server entry point
 
 **Environment Requirements**: Must run in `niteris/fastled-wasm` container with proper FastLED source mapping.
 
-**Volume Mapping**: 
+**Volume Mapping**:
 - `VOLUME_MAPPED_SRC`: Points to FastLED source directory for library compilation
 - `OUTPUT_DIR`: Temporary directory for compilation outputs
 - `UPLOAD_DIR`: Directory for uploaded sketch files

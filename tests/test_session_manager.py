@@ -7,8 +7,10 @@ from fastled_wasm_server.session_manager import SessionManager
 
 class TestSessionManager(unittest.TestCase):
     def setUp(self):
-        # Use a short expiry time for testing and disable background cleanup
-        self.session_manager = SessionManager(expiry_seconds=2, check_expiry=False)
+        # Use a short lease time for testing and disable background cleanup
+        self.session_manager = SessionManager(
+            worker_lease_seconds=2, gc_grace_period_seconds=4, check_expiry=False
+        )
 
     def test_session_creation(self):
         """Test that new sessions are created with unique IDs."""
@@ -20,52 +22,69 @@ class TestSessionManager(unittest.TestCase):
         self.assertNotEqual(session_id1, session_id2)
 
         # Verify both sessions are active
-        self.assertTrue(self.session_manager.touch_session(session_id1))
-        self.assertTrue(self.session_manager.touch_session(session_id2))
+        reused_id1, was_reused1 = self.session_manager.get_or_create_session(
+            session_id1
+        )
+        reused_id2, was_reused2 = self.session_manager.get_or_create_session(
+            session_id2
+        )
+        self.assertEqual(reused_id1, session_id1)
+        self.assertEqual(reused_id2, session_id2)
+        self.assertTrue(was_reused1)
+        self.assertTrue(was_reused2)
 
     def test_session_info(self):
         """Test session info messages."""
         # Test with no session
         info = self.session_manager.get_session_info(None)
-        self.assertEqual(info, "No session ID provided - treating as new session")
+        self.assertFalse(info["exists"])
+        self.assertEqual(info["message"], "No session ID provided")
 
         # Test with new session
         session_id = self.session_manager.generate_session_id()
         info = self.session_manager.get_session_info(session_id)
-        self.assertEqual(info, f"Using existing session {session_id}")
+        self.assertTrue(info["exists"])
+        self.assertEqual(info["session_id"], session_id)
 
         # Test with invalid session
         invalid_id = 12345
         info = self.session_manager.get_session_info(invalid_id)
-        self.assertEqual(info, f"Session {invalid_id} not found - expired or invalid")
+        self.assertFalse(info["exists"])
+        self.assertEqual(info["message"], f"Session {invalid_id} not found")
 
     def test_session_expiration(self):
-        """Test that sessions expire after the specified time."""
+        """Test that sessions expire after the worker lease duration."""
         # Create a session
         session_id = self.session_manager.generate_session_id()
-        self.assertTrue(self.session_manager.touch_session(session_id))
+        reused_id, was_reused = self.session_manager.get_or_create_session(session_id)
+        self.assertEqual(reused_id, session_id)
+        self.assertTrue(was_reused)
 
-        # Wait for expiration
-        time.sleep(3)  # Wait longer than expiry_seconds
+        # Wait for expiration beyond worker_lease_seconds
+        time.sleep(3)  # Wait longer than worker_lease_seconds (2s)
 
-        # Session should be expired when touched
-        self.assertFalse(self.session_manager.touch_session(session_id))
-        self.assertEqual(
-            self.session_manager.get_session_info(session_id),
-            f"Session {session_id} not found - expired or invalid",
-        )
+        # Session should not be reused - a new session should be created
+        new_id, was_reused = self.session_manager.get_or_create_session(session_id)
+        self.assertNotEqual(new_id, session_id)
+        self.assertFalse(was_reused)
 
     def test_session_touch_extends_lifetime(self):
-        """Test that touching a session extends its lifetime."""
+        """Test that using a session extends its lifetime."""
         session_id = self.session_manager.generate_session_id()
 
-        # Touch session multiple times over a period longer than expiry
+        # Use session multiple times over a period longer than worker lease
         for _ in range(3):
-            time.sleep(1)  # Wait half the expiry time
-            self.assertTrue(self.session_manager.touch_session(session_id))
+            time.sleep(1)  # Wait half the lease time
+            reused_id, was_reused = self.session_manager.get_or_create_session(
+                session_id
+            )
+            self.assertEqual(reused_id, session_id)
+            self.assertTrue(was_reused)
 
         # Session should still be valid
-        self.assertTrue(self.session_manager.touch_session(session_id))
+        reused_id, was_reused = self.session_manager.get_or_create_session(session_id)
+        self.assertEqual(reused_id, session_id)
+        self.assertTrue(was_reused)
 
     def test_concurrent_access(self):
         """Test that concurrent access to sessions is thread-safe."""
@@ -77,7 +96,11 @@ class TestSessionManager(unittest.TestCase):
         def worker():
             try:
                 for _ in range(iterations_per_thread):
-                    self.assertTrue(self.session_manager.touch_session(session_id))
+                    reused_id, was_reused = self.session_manager.get_or_create_session(
+                        session_id
+                    )
+                    self.assertEqual(reused_id, session_id)
+                    self.assertTrue(was_reused)
                     time.sleep(
                         0.001
                     )  # Small delay to increase chance of race conditions
@@ -91,25 +114,31 @@ class TestSessionManager(unittest.TestCase):
             t.join()
 
         self.assertEqual(len(errors), 0, f"Encountered errors: {errors}")
-        self.assertTrue(self.session_manager.touch_session(session_id))
+        reused_id, was_reused = self.session_manager.get_or_create_session(session_id)
+        self.assertEqual(reused_id, session_id)
+        self.assertTrue(was_reused)
 
     def test_manual_cleanup(self):
-        """Test manual cleanup of expired sessions."""
+        """Test GC cleanup of expired sessions."""
         # Create multiple sessions
         sessions = [self.session_manager.generate_session_id() for _ in range(3)]
         for sid in sessions:
-            self.assertTrue(self.session_manager.touch_session(sid))
+            reused_id, was_reused = self.session_manager.get_or_create_session(sid)
+            self.assertEqual(reused_id, sid)
+            self.assertTrue(was_reused)
 
-        # Wait for expiration
-        time.sleep(3)
+        # Wait for GC grace period expiration
+        time.sleep(5)  # Wait longer than gc_grace_period_seconds (4s)
 
         # Clean up expired sessions
-        cleaned = self.session_manager.cleanup_expired()
+        cleaned = self.session_manager._gc_cleanup_cycle()
         self.assertEqual(cleaned, 3)
 
-        # Verify all sessions are expired
+        # Verify all sessions are gone - trying to reuse them should create new sessions
         for sid in sessions:
-            self.assertFalse(self.session_manager.touch_session(sid))
+            new_id, was_reused = self.session_manager.get_or_create_session(sid)
+            self.assertNotEqual(new_id, sid)
+            self.assertFalse(was_reused)
 
 
 if __name__ == "__main__":

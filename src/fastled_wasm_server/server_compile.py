@@ -22,6 +22,7 @@ from fastled_wasm_compiler.compiler import UpdateSrcResult
 from fastled_wasm_compiler.run_compile import Args
 
 from fastled_wasm_server.paths import VOLUME_MAPPED_SRC
+from fastled_wasm_server.session_manager import SessionManager
 from fastled_wasm_server.types import CompilerStats
 
 # from fastled_wasm_server.paths import FASTLED_COMPILER_DIR
@@ -38,6 +39,8 @@ class CompileResult:
     output_zip_path: Path
     filename: str
     cleanup_list: list[Path]
+    session_id: int
+    session_reused: bool
 
 
 def _cleanup_files(paths: list[Path]) -> None:
@@ -66,6 +69,8 @@ def _compile_source(
     hash_value: str | None = None,
     no_platformio: bool = False,
     native: bool = False,
+    session_manager: SessionManager | None = None,
+    session_id_param: int | None = None,
 ) -> CompileResult | HTTPException:
     """Compile source code and return compiled artifacts as a zip file."""
     epoch = time.time()
@@ -82,6 +87,21 @@ def _compile_source(
 
     _print("Starting compile_source")
     stats.compile_count += 1
+
+    # Get or create session using SessionManager
+    session_id: int
+    session_reused: bool
+    if session_manager is not None:
+        session_id, session_reused = session_manager.get_or_create_session(
+            session_id_param
+        )
+        _print(f"Session ID: {session_id}, Reused: {session_reused}")
+    else:
+        # Fallback: no session management
+        session_id = 0
+        session_reused = False
+        _print("No session manager - using default behavior")
+
     try:
         # Find the first directory in temp_src_dir
         src_dir = next(Path(temp_src_dir).iterdir())
@@ -98,9 +118,8 @@ def _compile_source(
         build_mode.lower() == "debug"
     )  # Keep files so they can be source mapped during debug.
 
-    # If native is True, automatically set no_platformio to True
-    if native:
-        no_platformio = True
+    # Note: no_platformio and native parameters are handled at the server level
+    # but not passed to Args since PlatformIO support has been removed
 
     args: Args = Args(
         compiler_root=compiler_root,
@@ -228,6 +247,8 @@ def _compile_source(
         output_zip_path=output_zip_path,
         filename="fastled_output.zip",
         cleanup_list=cleanup_files,
+        session_id=session_id,
+        session_reused=session_reused,
     )
     return out
 
@@ -247,6 +268,8 @@ def server_compile(
     no_platformio: bool,
     native: bool,
     allow_libcompile: bool,
+    session_manager: SessionManager | None = None,
+    session_id: int | None = None,
 ) -> FileResponse:
     """Upload a file into a temporary directory."""
     if build is not None:
@@ -338,6 +361,8 @@ def server_compile(
             hash_value=hash_value,
             no_platformio=no_platformio,
             native=native,
+            session_manager=session_manager,
+            session_id_param=session_id,
         )
         if isinstance(out, HTTPException):
             print("Raising HTTPException")
@@ -351,12 +376,16 @@ def server_compile(
             _cleanup_files(paths)
 
         background_tasks.add_task(_cleanup_task)
-        # Convert to a FileResponse
+        # Convert to a FileResponse with session headers
         return FileResponse(
             path=compiled_out.output_zip_path,
             media_type="application/zip",
             filename=compiled_out.filename,
             background=background_tasks,
+            headers={
+                "X-Session-Id": str(compiled_out.session_id),
+                "X-Session-Reused": str(compiled_out.session_reused).lower(),
+            },
         )
     except HTTPException as e:
         stacktrace = traceback.format_exc()
@@ -404,6 +433,8 @@ class ServerWasmCompiler:
         no_platformio: bool,
         native: bool,
         allow_libcompile: bool,
+        session_manager: SessionManager | None = None,
+        session_id: int | None = None,
     ) -> FileResponse:
         return server_compile(
             compiler_root=self.compiler_root,
@@ -420,4 +451,6 @@ class ServerWasmCompiler:
             no_platformio=no_platformio,
             native=native,
             allow_libcompile=allow_libcompile,
+            session_manager=session_manager,
+            session_id=session_id,
         )

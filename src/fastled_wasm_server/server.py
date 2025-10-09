@@ -472,11 +472,12 @@ def compile_wasm(
         no_platformio=no_platformio,
         native=native,
         allow_libcompile=allow_libcompile,
+        session_manager=_SESSION_MANAGER,
+        session_id=session_id,
     )
 
-    # Add session information to response headers
-    file_response.headers["X-Session-Id"] = str(session_id)
-    file_response.headers["X-Session-Info"] = session_info
+    # Session headers are now added by server_compile.py
+    # X-Session-Id and X-Session-Reused are already in the response
     return file_response
 
 
