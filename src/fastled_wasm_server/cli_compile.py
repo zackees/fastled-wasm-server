@@ -48,20 +48,6 @@ def main() -> int:
     _ = args.compiler_args
     # os.environ["COMPILER_ROOT"] = str(args.compiler_root)
 
-    # from fastled_wasm_server.compile import Args as CompileArgs
-    # from fastled_wasm_server.compile import run as run_compile
-
-    # compile_args = CompileArgs(
-    #     ino_file=Path("/tmp/ino_file.ino"),
-    #     output_dir=Path("/output"),
-    #     compiler_root=args.compiler_root,
-    #     fastled_src=Path("/fastled/src"),
-    #     sketch_src=Path("/src"),
-    #     sketch_cache_file=Path("/output/compile_cache.db"),
-    # )
-
-    # run_compile(compile_args)
-
     return 0
 
 
